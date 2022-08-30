@@ -2084,7 +2084,7 @@ static CAmount ApproximateBestSubset(int numOut, int ringSize, std::vector<std::
     return nFeeNeeded;
 }
 
-bool CWallet::SelectStakeCoins(std::list<CStakeInput*>& listInputs, CAmount nTargetAmount)
+bool CWallet::SelectStakeCoins(std::list<std::unique_ptr<CStakeInput> >& listInputs, CAmount nTargetAmount)
 {
     std::vector<COutput> vCoins;
     AvailableCoins(vCoins, true, NULL, false, STAKABLE_COINS);
@@ -2113,9 +2113,9 @@ bool CWallet::SelectStakeCoins(std::list<CStakeInput*>& listInputs, CAmount nTar
             //add to our stake set
             nAmountSelected += value;
 
-            CPrcyStake *input = new CPrcyStake();
+            std::unique_ptr<CPrcyStake> input(new CPrcyStake());
             input->SetInput((CTransaction) *out.tx, out.i);
-            listInputs.emplace_back((CStakeInput *) input);
+            listInputs.emplace_back(std::move(input));
         }
     }
     return true;
@@ -3741,7 +3741,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
 
     // Initialize as static and don't update the set on every run of CreateCoinStake() in order to lighten resource use
     static int nLastStakeSetUpdate = 0;
-    static std::list<CStakeInput*> listInputs;
+    static std::list<std::unique_ptr<CStakeInput> > listInputs;
     if (GetTime() - nLastStakeSetUpdate > nStakeSetUpdateTime) {
         listInputs.clear();
         if (!SelectStakeCoins(listInputs, nBalance - nReserveBalance))
@@ -3759,7 +3759,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
     CScript scriptPubKeyKernel;
     int nAttempts = 0;
     bool fKernelFound = false;
-    for (CStakeInput* stakeInput : listInputs) {
+    for (std::unique_ptr<CStakeInput>& stakeInput : listInputs) {
         //make sure that enough time has elapsed between
         CBlockIndex* pindex = stakeInput->GetIndexFrom();
         if (!pindex || pindex->nHeight < 1) {
@@ -3774,7 +3774,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
 
         //iterates each utxo inside of CheckStakeKernelHash()
         nAttempts++;
-        if (Stake(stakeInput, nBits, block.GetBlockTime(), nTxNewTime, hashProofOfStake)) {
+        if (Stake(stakeInput.get(), nBits, block.GetBlockTime(), nTxNewTime, hashProofOfStake)) {
             //Double check that this will pass time requirements
             if (nTxNewTime <= chainActive.Tip()->GetMedianTimePast()) {
                 LogPrintf("CreateCoinStake() : kernel found, but it is too far in the past \n");
