@@ -867,7 +867,7 @@ UniValue sendmany(const UniValue& params, bool fHelp)
     for (const std::string& name_ : keys) {
         CBitcoinAddress address(name_);
         if (!address.IsValid())
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid PIVX address: ")+name_);
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid PRCY address: ")+name_);
 
         if (setAddress.count(address))
             throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid parameter, duplicated address: ")+name_);
@@ -2078,6 +2078,8 @@ UniValue getwalletinfo(const UniValue& params, bool fHelp)
             "{\n"
             "  \"walletversion\": xxxxx,      (numeric) the wallet version\n"
             "  \"balance\": xxxxxxx,          (numeric) the total PRCY balance of the wallet\n"
+            "  \"unconfirmed_balance\": xxx, (numeric) the total unconfirmed balance of the wallet in PRCY\n"
+            "  \"immature_balance\": xxxxxx, (numeric) the total immature balance of the wallet in PRCY\n"
             "  \"txcount\": xxxxxxx,          (numeric) the total number of transactions in the wallet\n"
             "  \"keypoololdest\": xxxxxx,     (numeric) the timestamp (seconds since GMT epoch) of the oldest pre-generated key in the key pool\n"
             "  \"keypoolsize\": xxxx,         (numeric) how many new keys are pre-generated\n"
@@ -2093,6 +2095,8 @@ UniValue getwalletinfo(const UniValue& params, bool fHelp)
     UniValue obj(UniValue::VOBJ);
     obj.push_back(Pair("walletversion", pwalletMain->GetVersion()));
     obj.push_back(Pair("balance", ValueFromAmount(pwalletMain->GetBalance())));
+    obj.push_back(Pair("unconfirmed_balance", ValueFromAmount(pwalletMain->GetUnconfirmedBalance())));
+    obj.push_back(Pair("immature_balance",    ValueFromAmount(pwalletMain->GetImmatureBalance())));
     obj.push_back(Pair("txcount", (int)pwalletMain->mapWallet.size()));
     obj.push_back(Pair("keypoololdest", pwalletMain->GetOldestKeyPoolTime()));
     obj.push_back(Pair("keypoolsize", (int)pwalletMain->GetKeyPoolSize()));
