@@ -2154,17 +2154,11 @@ bool CWallet::MintableCoins()
         AvailableCoins(vCoins, true);
 
         for (const COutput& out : vCoins) {
-            int64_t nTxTime = out.tx->GetTxTime();
-
             //add in-wallet minimum staking
             CAmount nVal = getCOutPutValue(out);
 
             //check that it is above Minimum Stake Amount
             if (nVal >= Params().MinimumStakeAmount())
-                return true;
-
-            //nTxTime <= nTime: only stake with UTXOs that are received before nTime time
-            if (Params().IsRegTestNet() || (GetAdjustedTime() > Params().StakeMinAge() + nTxTime))
                 return true;
 
             //check that it is not MN Collateral
@@ -2175,6 +2169,12 @@ bool CWallet::MintableCoins()
                     return true;
                 }
             }
+
+            int64_t nTxTime = out.tx->GetTxTime();
+
+            //nTxTime <= nTime: only stake with UTXOs that are received before nTime time
+            if (Params().IsRegTestNet() || (GetAdjustedTime() > Params().StakeMinAge() + nTxTime))
+                return true;
         }
     }
 
