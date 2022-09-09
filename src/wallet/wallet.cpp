@@ -3796,12 +3796,13 @@ bool CWallet::CreateCoinStake(
         }
     }
 
-    CAmount nCredit = 0;
+    CAmount nCredit;
     CScript scriptPubKeyKernel;
     bool fKernelFound = false;
     int nAttempts = 0;
     for (std::unique_ptr<CStakeInput>& stakeInput : listInputs) {
         // Make sure the wallet is unlocked and shutdown hasn't been requested
+        nCredit = 0;
         if (IsLocked() || ShutdownRequested())
             return false;
 
@@ -3859,7 +3860,6 @@ bool CWallet::CreateCoinStake(
                 LogPrintf("%s : failed to create TxIn\n", __func__);
                 txNew.vin.clear();
                 txNew.vout.clear();
-                nCredit = 0;
                 continue;
             }
             txNew.vin.push_back(in);
