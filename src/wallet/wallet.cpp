@@ -2197,6 +2197,19 @@ bool CWallet::SelectStakeCoins(std::list<std::unique_ptr<CStakeInput> >& listInp
             if (nAmountSelected + value > nTargetAmount)
                 continue;
 
+            //check that it is above Minimum Stake Amount
+            if (value < Params().MinimumStakeAmount())
+                continue;
+
+            //check that it is not MN Collateral
+            if (value == Params().MNCollateralAmt()) {
+                COutPoint outpoint(out.tx->GetHash(), out.i);
+                if (IsCollateralized(outpoint)) {
+                    LogPrint(BCLog::STAKING, "%s: Skipping MN collateralized output\n", __func__);
+                    continue;
+                }
+            }
+
             int64_t nTxTime = out.tx->GetTxTime();
 
             //check for min age
@@ -2205,10 +2218,6 @@ bool CWallet::SelectStakeCoins(std::list<std::unique_ptr<CStakeInput> >& listInp
 
             //check that it is matured
             if (out.nDepth < (out.tx->IsCoinStake() ? Params().COINBASE_MATURITY() : 10))
-                continue;
-
-            //check that it is above Minimum Stake Amount
-            if (value < Params().MinimumStakeAmount())
                 continue;
 
             //add to our stake set
@@ -2237,12 +2246,26 @@ bool CWallet::MintableCoins()
         AvailableCoins(vCoins, true);
 
         for (const COutput& out : vCoins) {
-            int64_t nTxTime = out.tx->GetTxTime();
-
             //add in-wallet minimum staking
             CAmount nVal = getCOutPutValue(out);
+
+            //check that it is above Minimum Stake Amount
+            if (nVal >= Params().MinimumStakeAmount())
+                return true;
+
+            //check that it is not MN Collateral
+            if (nVal == Params().MNCollateralAmt()) {
+                COutPoint outpoint(out.tx->GetHash(), out.i);
+                if (!IsCollateralized(outpoint)) {
+                    LogPrint(BCLog::STAKING, "%s: Skipping MN collateralized output\n", __func__);
+                    return true;
+                }
+            }
+
+            int64_t nTxTime = out.tx->GetTxTime();
+
             //nTxTime <= nTime: only stake with UTXOs that are received before nTime time
-            if (Params().IsRegTestNet() || (GetAdjustedTime() > Params().StakeMinAge() + nTxTime) && (nVal >= Params().MinimumStakeAmount()))
+            if (Params().IsRegTestNet() || (GetAdjustedTime() > Params().StakeMinAge() + nTxTime))
                 return true;
         }
     }
