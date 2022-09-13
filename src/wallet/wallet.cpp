@@ -3864,8 +3864,6 @@ bool CWallet::CreateCoinStake(
             fKernelFound = true;
             break;
         }
-        if (fKernelFound)
-            break; // if kernel is found stop searching
     }
     LogPrint(BCLog::STAKING, "%s: attempted staking %d times\n", __func__, nAttempts);
     if (!fKernelFound)
