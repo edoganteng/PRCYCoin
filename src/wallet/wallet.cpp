@@ -2093,7 +2093,7 @@ static CAmount ApproximateBestSubset(int numOut, int ringSize, std::vector<std::
     return nFeeNeeded;
 }
 
-bool CWallet::SelectStakeCoins(std::list<std::unique_ptr<CStakeInput> >& listInputs, CAmount nTargetAmount)
+bool CWallet::SelectStakeCoins(std::list<std::unique_ptr<CStakeInput> >& listInputs, CAmount nTargetAmount, int blockHeight)
 {
     std::vector<COutput> vCoins;
     AvailableCoins(vCoins, true, NULL, false, STAKABLE_COINS);
@@ -2121,11 +2121,11 @@ bool CWallet::SelectStakeCoins(std::list<std::unique_ptr<CStakeInput> >& listInp
             int64_t nTxTime = out.tx->GetTxTime();
 
             //check for min age
-            if (GetAdjustedTime() - nTxTime < Params().StakeMinAge() && !Params().IsRegTestNet())
+            if (GetAdjustedTime() - nTxTime < Params().StakeMinAge(blockHeight) && !Params().IsRegTestNet())
                 continue;
 
             //check that it is matured
-            if (out.nDepth < (out.tx->IsCoinStake() ? Params().COINBASE_MATURITY() : 10))
+            if (out.nDepth < (out.tx->IsCoinStake() ? Params().COINBASE_MATURITY(blockHeight) : 10))
                 continue;
 
             //add to our stake set
@@ -2142,6 +2142,8 @@ bool CWallet::SelectStakeCoins(std::list<std::unique_ptr<CStakeInput> >& listInp
 bool CWallet::MintableCoins()
 {
     CAmount nBalance = GetBalance();
+
+    int chainHeight = chainActive.Height();
 
     // Regular PRCY
     if (nBalance > 0) {
@@ -2173,7 +2175,7 @@ bool CWallet::MintableCoins()
             int64_t nTxTime = out.tx->GetTxTime();
 
             //nTxTime <= nTime: only stake with UTXOs that are received before nTime time
-            if (Params().IsRegTestNet() || (GetAdjustedTime() > Params().StakeMinAge() + nTxTime))
+            if (Params().IsRegTestNet() || (GetAdjustedTime() > Params().StakeMinAge(chainHeight) + nTxTime))
                 return true;
         }
     }
@@ -3510,9 +3512,11 @@ bool CWallet::MakeShnorrSignatureTxIn(CTxIn& txin, uint256 cts)
 
 bool CWallet::selectDecoysAndRealIndex(CTransaction& tx, int& myIndex, int ringSize)
 {
+    int chainHeight = chainActive.Height();
+
     LogPrintf("Selecting coinbase decoys for transaction\n");
     if (coinbaseDecoysPool.size() <= 100) {
-        for (int i = chainActive.Height() - Params().COINBASE_MATURITY(); i > 0; i--) {
+        for (int i = chainHeight - Params().COINBASE_MATURITY(chainHeight); i > 0; i--) {
             if (coinbaseDecoysPool.size() > 100) break;
             CBlockIndex* p = chainActive[i];
             CBlock b;
@@ -3595,7 +3599,7 @@ bool CWallet::selectDecoysAndRealIndex(CTransaction& tx, int& myIndex, int ringS
                     CBlockIndex* atTheblock = mapBlockIndex[it->second];
                     if (!atTheblock || !chainActive.Contains(atTheblock)) continue;
                     if (!chainActive.Contains(atTheblock)) continue;
-                    if (1 + chainActive.Height() - atTheblock->nHeight < DecoyConfirmationMinimum) continue;
+                    if (1 + chainHeight - atTheblock->nHeight < DecoyConfirmationMinimum) continue;
                     COutPoint outpoint = it->first;
                     for (size_t d = 0; d < tx.vin[i].decoys.size(); d++) {
                         if (tx.vin[i].decoys[d] == outpoint) {
@@ -3616,7 +3620,7 @@ bool CWallet::selectDecoysAndRealIndex(CTransaction& tx, int& myIndex, int ringS
                     CBlockIndex* atTheblock = mapBlockIndex[it->second];
                     if (!atTheblock || !chainActive.Contains(atTheblock)) continue;
                     if (!chainActive.Contains(atTheblock)) continue;
-                    if (1 + chainActive.Height() - atTheblock->nHeight < DecoyConfirmationMinimum) continue;
+                    if (1 + chainHeight - atTheblock->nHeight < DecoyConfirmationMinimum) continue;
                     COutPoint outpoint = it->first;
                     tx.vin[i].decoys.push_back(outpoint);
                     numDecoys++;
@@ -3637,7 +3641,7 @@ bool CWallet::selectDecoysAndRealIndex(CTransaction& tx, int& myIndex, int ringS
                     CBlockIndex* atTheblock = mapBlockIndex[it->second];
                     if (!atTheblock || !chainActive.Contains(atTheblock)) continue;
                     if (!chainActive.Contains(atTheblock)) continue;
-                    if (1 + chainActive.Height() - atTheblock->nHeight < DecoyConfirmationMinimum) continue;
+                    if (1 + chainHeight - atTheblock->nHeight < DecoyConfirmationMinimum) continue;
                     COutPoint outpoint = it->first;
                     for (size_t d = 0; d < tx.vin[i].decoys.size(); d++) {
                         if (tx.vin[i].decoys[d] == outpoint) {
@@ -3658,7 +3662,7 @@ bool CWallet::selectDecoysAndRealIndex(CTransaction& tx, int& myIndex, int ringS
                     CBlockIndex* atTheblock = mapBlockIndex[it->second];
                     if (!atTheblock || !chainActive.Contains(atTheblock)) continue;
                     if (!chainActive.Contains(atTheblock)) continue;
-                    if (1 + chainActive.Height() - atTheblock->nHeight < DecoyConfirmationMinimum) continue;
+                    if (1 + chainHeight - atTheblock->nHeight < DecoyConfirmationMinimum) continue;
                     COutPoint outpoint = it->first;
                     tx.vin[i].decoys.push_back(outpoint);
                     numDecoys++;
@@ -3780,7 +3784,7 @@ bool CWallet::CreateCoinStake(
 
     // Get the list of stakable inputs
     std::list<std::unique_ptr<CStakeInput> > listInputs;
-    if (!SelectStakeCoins(listInputs, nBalance - nReserveBalance)) {
+    if (!SelectStakeCoins(listInputs, nBalance - nReserveBalance, pindexPrev->nHeight + 1)) {
         LogPrintf("CreateCoinStake(): selectStakeCoins failed\n");
         return false;
     }
@@ -5176,11 +5180,17 @@ void CWallet::AutoCombineDust()
 {
     // QT wallet is always locked at startup, return immediately
     if (IsLocked()) return;
+
+    const CBlockIndex* tip = chainActive.Tip();
+    int chainTipHeight = tip->nHeight;
+
     // Chain is not synced, return
     if (IsInitialBlockDownload() || !masternodeSync.IsBlockchainSynced()) return;
+
     // Tip()->nTime < (GetAdjustedTime() - 300)
-    if (chainActive.Tip()->nTime < (GetAdjustedTime() - 300)) return;
-    bool stkStatus = ReadStakingStatus();
+    if (tip->nTime < (GetAdjustedTime() - 300)) return;
+
+    bool stkStatus = pwalletMain->ReadStakingStatus();
     if (combineMode == CombineMode::ON && stkStatus) {
         //sweeping to create larger UTXO for staking
         LOCK2(cs_main, cs_wallet);
@@ -5270,11 +5280,13 @@ bool CWallet::MultiSend()
 {
     LOCK2(cs_main, cs_wallet);
     // Stop the old blocks from sending multisends
-    if (chainActive.Tip()->nTime < (GetAdjustedTime() - 300) || IsLocked()) {
+    const CBlockIndex* tip = chainActive.Tip();
+    int chainTipHeight = tip->nHeight;
+    if (tip->nTime < (GetAdjustedTime() - 300) || IsLocked()) {
         return false;
     }
 
-    if (chainActive.Tip()->nHeight <= nLastMultiSendHeight) {
+    if (chainTipHeight <= nLastMultiSendHeight) {
         LogPrintf("Multisend: lastmultisendheight is higher than current best height\n");
         return false;
     }
@@ -5286,7 +5298,7 @@ bool CWallet::MultiSend()
     bool mnSent = false;
     for (const COutput& out : vCoins) {
         //need output with precise confirm count - this is how we identify which is the output to send
-        if (out.tx->GetDepthInMainChain() != Params().COINBASE_MATURITY() + 1)
+        if (out.tx->GetDepthInMainChain() != Params().COINBASE_MATURITY(chainTipHeight) + 1)
             continue;
 
         COutPoint outpoint(out.tx->GetHash(), out.i);
@@ -5485,7 +5497,7 @@ int CMerkleTx::GetBlocksToMaturity() const
     LOCK(cs_main);
     if (!(IsCoinBase() || IsCoinStake()))
         return 0;
-    return std::max(0, (Params().COINBASE_MATURITY() + 1) - GetDepthInMainChain());
+    return std::max(0, (Params().COINBASE_MATURITY(chainActive.Tip()->nHeight) + 1) - GetDepthInMainChain());
 }
 
 bool CMerkleTx::IsInMainChain() const
@@ -5497,7 +5509,8 @@ bool CMerkleTx::IsInMainChainImmature() const
 {
     if (!IsCoinBase() && !IsCoinStake()) return false;
     const int depth = GetDepthInMainChain(false);
-    return (depth > 0 && depth <= Params().COINBASE_MATURITY());
+    int chainTipHeight = chainActive.Height();
+    return (depth > 0 && depth <= Params().COINBASE_MATURITY(chainTipHeight));
 }
 
 bool CMerkleTx::AcceptToMemoryPool(bool fLimitFree, bool fRejectInsaneFee, bool ignoreFees)
