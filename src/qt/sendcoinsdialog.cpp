@@ -245,7 +245,7 @@ void SendCoinsDialog::on_sendButton_clicked(){
         return;
     }
 
-    bool nStaking = (nLastCoinStakeSearchInterval > 0);
+    bool nStaking = model->isStakingStatusActive();
 
     if (nStaking) {
         CAmount spendable = pwalletMain->GetSpendableBalance();
@@ -519,7 +519,7 @@ void SendCoinsDialog::coinControlChangeEdited(const QString& text)
             ui->labelCoinControlChangeLabel->setText("");
         } else if (!addr.IsValid()) // Invalid address
         {
-            ui->labelCoinControlChangeLabel->setText(tr("Warning: Invalid PIVX address"));
+            ui->labelCoinControlChangeLabel->setText(tr("Warning: Invalid PRCY address"));
         } else // Valid address
         {
             CPubKey pubkey;

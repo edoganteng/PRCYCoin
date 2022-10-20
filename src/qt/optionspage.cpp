@@ -84,7 +84,7 @@ OptionsPage::OptionsPage(QWidget* parent) : QDialog(parent, Qt::WindowSystemMenu
 
     if (!fLiteMode) {
         //Staking related items and functions
-        ui->toggleStaking->setState(nLastCoinStakeSearchInterval | stkStatus);
+        ui->toggleStaking->setState(stkStatus);
         connect(ui->toggleStaking, SIGNAL(stateChanged(ToggleButton*)), this, SLOT(on_EnableStaking(ToggleButton*)));
         timerStakingToggleSync = new QTimer();
         connect(timerStakingToggleSync, SIGNAL(timeout()), this, SLOT(setStakingToggle()));
@@ -235,9 +235,9 @@ void OptionsPage::on_pushButtonSave_clicked() {
     CWalletDB walletdb(pwalletMain->strWalletFile);
     walletdb.WriteReserveAmount(nReserveBalance / COIN);
 
-    Q_EMIT model->stakingStatusChanged(nLastCoinStakeSearchInterval);
+    Q_EMIT model->stakingStatusChanged(model->isStakingStatusActive());
     ui->lineEditWithhold->setStyleSheet(GUIUtil::loadStyleSheet());
-    
+
     QString reserveBalance = ui->lineEditWithhold->text().trimmed();
     QMessageBox msgBox;
     msgBox.setWindowTitle("Reserve Balance Set");
@@ -253,7 +253,7 @@ void OptionsPage::on_pushButtonDisable_clicked() {
     CWalletDB walletdb(pwalletMain->strWalletFile);
     walletdb.WriteReserveAmount(0);
 
-    Q_EMIT model->stakingStatusChanged(nLastCoinStakeSearchInterval);
+    Q_EMIT model->stakingStatusChanged(model->isStakingStatusActive());
     QMessageBox msgBox;
     msgBox.setWindowTitle("Reserve Balance Disabled");
     msgBox.setText("Reserve balance disabled.");
@@ -479,7 +479,7 @@ void OptionsPage::on_EnableStaking(ToggleButton* widget)
         CAmount minFee, maxFee;
         StakingStatusError stt = pwalletMain->StakingCoinStatus(minFee, maxFee);
         std::string errorMessage;
-        if (stt == StakingStatusError::UNSTAKABLE_BALANCE_TOO_LOW || 
+        if (stt == StakingStatusError::UNSTAKABLE_BALANCE_TOO_LOW ||
             stt == UNSTAKABLE_BALANCE_RESERVE_TOO_HIGH ||
             stt == UNSTAKABLE_BALANCE_RESERVE_TOO_HIGH_CONSOLIDATION_FAILED ||
             stt == UNSTAKABLE_BALANCE_TOO_LOW_CONSOLIDATION_FAILED) {
@@ -502,11 +502,10 @@ void OptionsPage::on_EnableStaking(ToggleButton* widget)
             msgBox.setStyleSheet(GUIUtil::loadStyleSheet());
             msgBox.exec();
             widget->setState(false);
-            nLastCoinStakeSearchInterval = 0;
             Q_EMIT model->stakingStatusChanged(false);
-            pwalletMain->WriteStakingStatus(false);   
-            return; 
-        } 
+            pwalletMain->WriteStakingStatus(false);
+            return;
+        }
         if (stt == StakingStatusError::STAKING_OK) {
             pwalletMain->WriteStakingStatus(true);
             Q_EMIT model->stakingStatusChanged(true);
@@ -524,7 +523,7 @@ void OptionsPage::on_EnableStaking(ToggleButton* widget)
             errorMessage = "In order to enable staking with 100% of your current balance except the reserve balance, your previous PRCY deposits must be consolidated and reorganized. This will incur a fee of between " + FormatMoney(minFee) + " to " + FormatMoney(maxFee) + " PRCY.\n\nWould you like to do this?";
         }
         reply = QMessageBox::question(this, "Staking Needs Consolidation", QString::fromStdString(errorMessage), QMessageBox::Yes|QMessageBox::No|QMessageBox::Ignore);
-        if (reply == QMessageBox::Yes) { 
+        if (reply == QMessageBox::Yes) {
             pwalletMain->WriteStakingStatus(true);
             Q_EMIT model->stakingStatusChanged(true);
             model->generateCoins(true, 1);
@@ -551,10 +550,9 @@ void OptionsPage::on_EnableStaking(ToggleButton* widget)
                 }
             } catch (const std::exception& err) {
                 LogPrintf("Sweeping failed, will be done automatically when coins become mature");
-            }            
+            }
             return;
         } else if (reply == QMessageBox::No) {
-            nLastCoinStakeSearchInterval = 0;
             model->generateCoins(false, 0);
             Q_EMIT model->stakingStatusChanged(false);
             pwalletMain->walletStakingInProgress = false;
@@ -580,7 +578,6 @@ void OptionsPage::on_EnableStaking(ToggleButton* widget)
                 msgBox.setStyleSheet(GUIUtil::loadStyleSheet());
                 msgBox.exec();
                 widget->setState(false);
-                nLastCoinStakeSearchInterval = 0;
                 Q_EMIT model->stakingStatusChanged(false);
                 pwalletMain->WriteStakingStatus(false);
             } else {
@@ -631,14 +628,12 @@ void OptionsPage::on_EnableStaking(ToggleButton* widget)
                     }
                 } else {
                     widget->setState(false);
-                    nLastCoinStakeSearchInterval = 0;
                     Q_EMIT model->stakingStatusChanged(false);
                     pwalletMain->WriteStakingStatus(false);
                 }
             }
         }*/
     } else {
-        nLastCoinStakeSearchInterval = 0;
         model->generateCoins(false, 0);
         Q_EMIT model->stakingStatusChanged(false);
         pwalletMain->walletStakingInProgress = false;
@@ -765,7 +760,7 @@ void OptionsPage::enable2FA() {
         value.sprintf("%c", chrlist[5]);
         ui->code_6->setText(value);
     }
-     
+
     int period = pwalletMain->Read2FAPeriod();
     typeOf2FA = NONE2FA;
     if (period == 1) {
@@ -829,7 +824,7 @@ void OptionsPage::on_week() {
     codedlg.setWindowTitle("2FA Code Verification");
     codedlg.setStyleSheet(GUIUtil::loadStyleSheet());
     connect(&codedlg, SIGNAL(finished (int)), this, SLOT(confirmDialogIsFinished(int)));
-    codedlg.exec();   
+    codedlg.exec();
 }
 
 void OptionsPage::on_month() {
@@ -885,7 +880,7 @@ void OptionsPage::onShowMnemonic() {
             return;
         }
     }
-    
+
     CHDChain hdChainCurrent;
     if (!pwalletMain->GetDecryptedHDChain(hdChainCurrent))
         return;
