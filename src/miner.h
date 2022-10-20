@@ -24,6 +24,8 @@ struct CBlockTemplate;
 void GeneratePrcycoins(bool fGenerate, CWallet* pwallet, int nThreads);
 /** Run the PoA miner threads */
 void GeneratePoAPrcycoin(CWallet* pwallet, int period);
+/** Get reliable pointer to current chain tip */
+CBlockIndex* GetChainTip();
 /** Generate a new block, without valid proof-of-work */
 CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn, const CPubKey& txPub, const CKey& txPriv, CWallet* pwallet, bool fProofOfStake);
 CBlockTemplate* CreateNewBlockWithKey(CReserveKey& reservekey, CWallet* pwallet, bool fProofOfStake);
