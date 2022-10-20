@@ -136,6 +136,9 @@ public:
 
     bool isShutdownRequested();
 
+    /* current staking status from the miner thread **/
+    bool isStakingStatusActive() const;
+
     CAmount getBalance(const CCoinControl* coinControl = NULL) const;
     CAmount getUnconfirmedBalance() const;
     CAmount getImmatureBalance() const;

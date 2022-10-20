@@ -84,7 +84,7 @@ OptionsPage::OptionsPage(QWidget* parent) : QDialog(parent, Qt::WindowSystemMenu
 
     if (!fLiteMode) {
         //Staking related items and functions
-        ui->toggleStaking->setState(nLastCoinStakeSearchInterval | stkStatus);
+        ui->toggleStaking->setState(stkStatus);
         connect(ui->toggleStaking, SIGNAL(stateChanged(ToggleButton*)), this, SLOT(on_EnableStaking(ToggleButton*)));
         timerStakingToggleSync = new QTimer();
         connect(timerStakingToggleSync, SIGNAL(timeout()), this, SLOT(setStakingToggle()));
@@ -234,7 +234,7 @@ void OptionsPage::on_pushButtonSave_clicked() {
     CWalletDB walletdb(pwalletMain->strWalletFile);
     walletdb.WriteReserveAmount(nReserveBalance / COIN);
 
-    Q_EMIT model->stakingStatusChanged(nLastCoinStakeSearchInterval);
+    Q_EMIT model->stakingStatusChanged(model->isStakingStatusActive());
     ui->lineEditWithhold->setStyleSheet(GUIUtil::loadStyleSheet());
     
     QString reserveBalance = ui->lineEditWithhold->text().trimmed();
@@ -252,7 +252,7 @@ void OptionsPage::on_pushButtonDisable_clicked() {
     CWalletDB walletdb(pwalletMain->strWalletFile);
     walletdb.WriteReserveAmount(0);
 
-    Q_EMIT model->stakingStatusChanged(nLastCoinStakeSearchInterval);
+    Q_EMIT model->stakingStatusChanged(model->isStakingStatusActive());
     QMessageBox msgBox;
     msgBox.setWindowTitle("Reserve Balance Disabled");
     msgBox.setText("Reserve balance disabled.");
@@ -501,7 +501,6 @@ void OptionsPage::on_EnableStaking(ToggleButton* widget)
             msgBox.setStyleSheet(GUIUtil::loadStyleSheet());
             msgBox.exec();
             widget->setState(false);
-            nLastCoinStakeSearchInterval = 0;
             Q_EMIT model->stakingStatusChanged(false);
             pwalletMain->WriteStakingStatus(false);   
             return; 
@@ -552,7 +551,6 @@ void OptionsPage::on_EnableStaking(ToggleButton* widget)
             }            
             return;
         } else {
-            nLastCoinStakeSearchInterval = 0;
             model->generateCoins(false, 0);
             Q_EMIT model->stakingStatusChanged(false);
             pwalletMain->walletStakingInProgress = false;
@@ -573,7 +571,6 @@ void OptionsPage::on_EnableStaking(ToggleButton* widget)
                 msgBox.setStyleSheet(GUIUtil::loadStyleSheet());
                 msgBox.exec();
                 widget->setState(false);
-                nLastCoinStakeSearchInterval = 0;
                 Q_EMIT model->stakingStatusChanged(false);
                 pwalletMain->WriteStakingStatus(false);
             } else {
@@ -624,14 +621,12 @@ void OptionsPage::on_EnableStaking(ToggleButton* widget)
                     }
                 } else {
                     widget->setState(false);
-                    nLastCoinStakeSearchInterval = 0;
                     Q_EMIT model->stakingStatusChanged(false);
                     pwalletMain->WriteStakingStatus(false);
                 }
             }
         }*/
     } else {
-        nLastCoinStakeSearchInterval = 0;
         model->generateCoins(false, 0);
         Q_EMIT model->stakingStatusChanged(false);
         pwalletMain->walletStakingInProgress = false;

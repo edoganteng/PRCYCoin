@@ -159,17 +159,13 @@ extern bool fGeneratePrcycoins;
 extern bool fLargeWorkForkFound;
 extern bool fLargeWorkInvalidChainFound;
 
-extern int64_t nLastCoinStakeSearchInterval;
 //extern int64_t nConsolidationTime;
-extern int64_t nLastCoinStakeSearchTime;
-
 extern int MIN_RING_SIZE;
 extern int MAX_RING_SIZE;
 extern const int MAX_TX_INPUTS;
 extern const int MIN_TX_INPUTS_FOR_SWEEPING;
 
 extern std::map<uint256, int64_t> mapRejectedBlocks;
-extern std::map<unsigned int, unsigned int> mapHashedBlocks;
 extern std::map<COutPoint, COutPoint> mapInvalidOutPoints;
 
 /** Best header we've seen so far (used for getheaders queries' starting points). */

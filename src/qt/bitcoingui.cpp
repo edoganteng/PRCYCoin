@@ -1380,10 +1380,7 @@ void BitcoinGUI::setStakingStatus()
         stakingAction->setIcon(QIcon(":/icons/staking_waiting"));
         return;
     }
-    if (stakingState->text().contains("Enabling")) {
-        if (!nLastCoinStakeSearchInterval) return;
-    }
-    if (nLastCoinStakeSearchInterval) {
+    if (pwalletMain->pStakerStatus->IsActive()) {
         LogPrint(BCLog::STAKING,"Checking Staking Status: Enabled.\n");
         stakingState->setText(tr("Staking Enabled"));
         stakingState->setToolTip("Staking Enabled");

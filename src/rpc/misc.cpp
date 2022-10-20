@@ -104,11 +104,10 @@ UniValue getinfo(const UniValue &params, bool fHelp) {
 #endif
     obj.push_back(Pair("relayfee", ValueFromAmount(::minRelayTxFee.GetFeePerK())));
     bool nStaking = false;
-    if (mapHashedBlocks.count(chainActive.Tip()->nHeight))
-        nStaking = true;
-    else if (mapHashedBlocks.count(chainActive.Tip()->nHeight - 1) && nLastCoinStakeSearchInterval)
-        nStaking = true;
-    if (pwalletMain->IsLocked()) {
+    obj.push_back(Pair("staking status", (pwalletMain->pStakerStatus->IsActive() ?
+                                            "Staking Active" :
+                                            "Staking Not Active")));
+    /*if (pwalletMain->IsLocked()) {
         obj.push_back(Pair("staking mode", ("disabled")));
         obj.push_back(Pair("staking status", ("inactive (wallet locked)")));
     } else {
@@ -124,7 +123,7 @@ UniValue getinfo(const UniValue &params, bool fHelp) {
         } else {
             obj.push_back(Pair("staking status", (nStaking ? "active (attempting to mint a block)" : "idle (waiting for next round)")));
         }
-    }
+    }*/
     obj.push_back(Pair("errors", GetWarnings("statusbar")));
     return obj;
 }
@@ -627,13 +626,8 @@ UniValue getstakingstatus(const UniValue& params, bool fHelp)
         obj.push_back(Pair("enoughcoins", nReserveBalance <= pwalletMain->GetBalance()));
     }
     obj.push_back(Pair("masternodes-synced", masternodeSync.IsSynced()));
-
-    bool nStaking = false;
-    if (mapHashedBlocks.count(chainActive.Tip()->nHeight))
-        nStaking = true;
-    else if (mapHashedBlocks.count(chainActive.Tip()->nHeight - 1) && nLastCoinStakeSearchInterval)
-        nStaking = true;
-    if (pwalletMain->IsLocked()) {
+    obj.push_back(Pair("staking status", pwalletMain->pStakerStatus->IsActive()));
+    /*if (pwalletMain->IsLocked()) {
         obj.push_back(Pair("staking mode", ("disabled")));
         obj.push_back(Pair("staking status", ("inactive (wallet locked)")));
     } else {
@@ -649,7 +643,7 @@ UniValue getstakingstatus(const UniValue& params, bool fHelp)
         } else {
             obj.push_back(Pair("staking status", (nStaking ? "active (attempting to mint a block)" : "idle (waiting for next round)")));
         }
-    }
+    }*/
     return obj;
 }
 #endif // ENABLE_WALLET

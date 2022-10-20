@@ -69,6 +69,10 @@ WalletModel::~WalletModel()
     unsubscribeFromCoreSignals();
 }
 
+bool WalletModel::isStakingStatusActive() const {
+    return wallet->pStakerStatus->IsActive();
+}
+
 CAmount WalletModel::getBalance(const CCoinControl* coinControl) const
 {
     if (coinControl) {
@@ -207,7 +211,7 @@ bool WalletModel::checkBalanceChanged()
     }
 
     if (walletLocked != pwalletMain->IsLocked() || 
-        (stkEnabled != (nLastCoinStakeSearchInterval > 0)) || 
+        //(stkEnabled != (nLastCoinStakeSearchInterval > 0)) ||
         newSpendableBalance != spendableBalance || 
         cachedBalance != newBalance || 
         cachedUnconfirmedBalance != newUnconfirmedBalance || 
@@ -224,7 +228,7 @@ bool WalletModel::checkBalanceChanged()
         cachedWatchOnlyBalance = newWatchOnlyBalance;
         cachedWatchUnconfBalance = newWatchUnconfBalance;
         cachedWatchImmatureBalance = newWatchImmatureBalance;
-        stkEnabled = (nLastCoinStakeSearchInterval > 0);
+        stkEnabled = pwalletMain->pStakerStatus->IsActive();
         walletLocked = pwalletMain->IsLocked();
         Q_EMIT balanceChanged(newBalance, newUnconfirmedBalance, newImmatureBalance,
             newWatchOnlyBalance, newWatchUnconfBalance, newWatchImmatureBalance);

@@ -171,7 +171,7 @@ void OverviewPage::setBalance(const CAmount& balance, const CAmount& unconfirmed
     nSpendableBalance = pwalletMain->GetSpendableBalance();
 
     CAmount nSpendableDisplayed = nSpendableBalance; //if it is not staking
-    if (nLastCoinStakeSearchInterval) {
+    if (walletModel->isStakingStatusActive()) {
         //if staking enabled
         nSpendableDisplayed = nSpendableDisplayed > nReserveBalance ? nReserveBalance:nSpendableDisplayed;
     }
@@ -187,7 +187,7 @@ void OverviewPage::setBalance(const CAmount& balance, const CAmount& unconfirmed
         ui->labelBalance->setText("Hidden");
         ui->labelUnconfirmed->setText("Hidden");
     } else {
-        if (stkStatus && !nLastCoinStakeSearchInterval && !fLiteMode) {
+        if (stkStatus && !pwalletMain->pStakerStatus->IsActive() && !fLiteMode) {
             ui->labelBalance_2->setText("Enabling Staking...");
             ui->labelBalance_2->setToolTip("Enabling Staking... Please wait up to 1.5 hours for it to be properly enabled after consolidation.");
             ui->labelBalance->setText("Enabling Staking...");
