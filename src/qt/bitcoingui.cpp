@@ -1397,9 +1397,10 @@ void BitcoinGUI::setStakingStatus()
         stakingAction->setIcon(QIcon(":/icons/staking_active"));
     }
 }
-void BitcoinGUI::setStakingInProgress(bool inProgress)
+
+void BitcoinGUI::setStakingStatusActive(bool fActive)
 {
-    if (inProgress) {
+    if (fActive) {
         stakingState->setText(tr("Enabling Staking..."));
         stakingState->setToolTip("Enabling Staking... Please wait up to 1.5 hours for it to be properly enabled after consolidation.");
         stakingAction->setIcon(QIcon(":/icons/staking_active"));
@@ -1408,6 +1409,10 @@ void BitcoinGUI::setStakingInProgress(bool inProgress)
         stakingState->setToolTip("Disabling Staking...");
         stakingAction->setIcon(QIcon(":/icons/staking_inactive"));
     }
+}
+
+void BitcoinGUI::updateStakingStatus(){
+    setStakingStatusActive(pwalletMain->pStakerStatus->IsActive());
 }
 
 #ifdef ENABLE_WALLET
