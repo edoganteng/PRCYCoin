@@ -65,7 +65,6 @@ public:
 
 uint64_t nLastBlockTx = 0;
 uint64_t nLastBlockSize = 0;
-int64_t nLastCoinStakeSearchInterval = 0;
 int64_t nDefaultMinerSleep = 0;
 //int64_t nConsolidationTime = 0;
 
@@ -236,7 +235,6 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn, const CPubKey& txP
                 fStakeFound = true;
             }
 
-            nLastCoinStakeSearchInterval = nSearchTime - nLastCoinStakeSearchTime;
             nLastCoinStakeSearchTime = nSearchTime;
         }
 
@@ -730,7 +728,6 @@ void BitcoinMiner(CWallet* pwallet, bool fProofOfStake)
             }
 
             while (vNodes.empty() || pwallet->IsLocked() || !fMintableCoins || nReserveBalance >= pwallet->GetBalance() || !masternodeSync.IsSynced()) {
-                nLastCoinStakeSearchInterval = 0;
                 // Do a separate 1 minute check here to ensure fMintableCoins is updated
                 if (!fMintableCoins) {
                     if (GetTime() - nMintableLastCheck > 1 * 60) // 1 minute check time
@@ -749,18 +746,17 @@ void BitcoinMiner(CWallet* pwallet, bool fProofOfStake)
 
             if (!fGeneratePrcycoins) {
                 LogPrintf("Stopping staking or mining\n");
-                nLastCoinStakeSearchInterval = 0;
                 break;
             }
 
             const bool fTimeV2 = Params().IsTimeProtocolV2(chainActive.Height()+1);
             //search our map of hashed blocks, see if bestblock has been hashed yet
-            const int chainHeight = chainActive.Height();
-            if (mapHashedBlocks.count(chainHeight) && !fLastLoopOrphan)
+            if (pwallet->pStakerStatus->GetLastHash() == chainActive.Tip()->GetBlockHash()
+                    && !fLastLoopOrphan)
             {
-                int64_t tipHashTime = mapHashedBlocks[chainHeight];
-                if (    (!fTimeV2 && GetTime() < tipHashTime + 22) ||
-                        (fTimeV2 && GetCurrentTimeSlot() <= tipHashTime) )
+                uint256 lastHashTime = pwallet->pStakerStatus->GetLastTime();
+                if (    (!fTimeV2 && GetTime() < lastHashTime + 22) ||
+                        (fTimeV2 && GetCurrentTimeSlot() <= lastHashTime) )
                 {
                     MilliSleep(2000);
                     continue;
