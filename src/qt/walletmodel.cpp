@@ -69,11 +69,15 @@ WalletModel::~WalletModel()
     unsubscribeFromCoreSignals();
 }
 
+bool WalletModel::isStakingStatusActive() const {
+    return wallet->pStakerStatus->IsActive();
+}
+
 CAmount WalletModel::getBalance(const CCoinControl* coinControl) const
 {
     if (coinControl) {
 
-        {   
+        {
             return wallet->GetBalance();
         }
     }
@@ -86,7 +90,7 @@ CAmount WalletModel::getUnconfirmedBalance() const
     return wallet->GetUnconfirmedBalance();
 }
 
-CAmount WalletModel::getSpendableBalance() const 
+CAmount WalletModel::getSpendableBalance() const
 {
     return wallet->GetSpendableBalance();
 }
@@ -180,7 +184,7 @@ void WalletModel::emitBalanceChanged()
     // Force update of UI elements even when no values have changed
     if (cachedBalance == 0 && !checkBalanceChanged())
         return;
-    
+
     Q_EMIT balanceChanged(cachedBalance, cachedUnconfirmedBalance, cachedImmatureBalance,
         cachedWatchOnlyBalance, cachedWatchUnconfBalance, cachedWatchImmatureBalance);
 }
@@ -203,13 +207,13 @@ bool WalletModel::checkBalanceChanged()
     }
 
     if (walletLocked != wallet->IsLocked() ||
-        (stkEnabled != (nLastCoinStakeSearchInterval > 0)) || 
-        newSpendableBalance != spendableBalance || 
-        cachedBalance != newBalance || 
-        cachedUnconfirmedBalance != newUnconfirmedBalance || 
+        //(stkEnabled != (nLastCoinStakeSearchInterval > 0)) ||
+        newSpendableBalance != spendableBalance ||
+        cachedBalance != newBalance ||
+        cachedUnconfirmedBalance != newUnconfirmedBalance ||
         cachedImmatureBalance != newImmatureBalance ||
-        cachedWatchOnlyBalance != newWatchOnlyBalance || 
-        cachedWatchUnconfBalance != newWatchUnconfBalance || 
+        cachedWatchOnlyBalance != newWatchOnlyBalance ||
+        cachedWatchUnconfBalance != newWatchUnconfBalance ||
         cachedWatchImmatureBalance != newWatchImmatureBalance ||
         cachedTxLocks != nCompleteTXLocks) {
         cachedBalance = newBalance;
@@ -220,7 +224,7 @@ bool WalletModel::checkBalanceChanged()
         cachedWatchOnlyBalance = newWatchOnlyBalance;
         cachedWatchUnconfBalance = newWatchUnconfBalance;
         cachedWatchImmatureBalance = newWatchImmatureBalance;
-        stkEnabled = (nLastCoinStakeSearchInterval > 0);
+        stkEnabled = wallet->pStakerStatus->IsActive();
         walletLocked = wallet->IsLocked();
         Q_EMIT balanceChanged(newBalance, newUnconfirmedBalance, newImmatureBalance,
             newWatchOnlyBalance, newWatchUnconfBalance, newWatchImmatureBalance);
@@ -654,12 +658,12 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput> >& mapCoins) 
 
 bool WalletModel::isLockedCoin(uint256 hash, unsigned int n) const
 {
-    LOCK2(cs_main, wallet->cs_wallet);   
+    LOCK2(cs_main, wallet->cs_wallet);
     return wallet->IsLockedCoin(hash, n);
 }
 
 void WalletModel::lockCoin(COutPoint& output)
-{   
+{
     LOCK2(cs_main, wallet->cs_wallet);
     wallet->LockCoin(output);
 }
@@ -815,7 +819,7 @@ std::map<QString, QString> getTx(CWallet* wallet, CWalletTx tx)
     std::string txHash = tx.GetHash().GetHex();
     QList<QString> addressBook = getAddressBookData(wallet);
     std::map<QString, QString> txData;
-    
+
     if (tx.hashBlock != 0) {
         BlockMap::iterator mi = mapBlockIndex.find(tx.hashBlock);
         if (mi != mapBlockIndex.end() && (*mi).second) {
@@ -830,7 +834,7 @@ std::map<QString, QString> getTx(CWallet* wallet, CWalletTx tx)
     for (TransactionRecord TxRecord : decomposedTx) {
         txData["date"] = QString(GUIUtil::dateTimeStr(TxRecord.time));
         // if address is in book, use data from book, else use data from transaction
-        txData["address"]=""; 
+        txData["address"]="";
 //        for (QString addressBookEntry : addressBook)
 //            if (addressBookEntry.contains(TxRecord.address.c_str())) {
 //                txData["address"] = addressBookEntry;
@@ -873,7 +877,7 @@ std::map<QString, QString> getTx(CWallet* wallet, CWalletTx tx)
         case TransactionRecord::MNReward:
             txData["type"] = QString("Masternode");
             txData["amount"] = BitcoinUnits::format(0,  TxRecord.credit); //absolute value of total amount
-            break;     
+            break;
         default:
             txData["type"] = QString("Payment");
             //txData["type"] = QString("Unknown");
@@ -893,7 +897,7 @@ QList<QString> getAddressBookData(CWallet* wallet)
             AddressBookData.push_front(desc + " | " + addressHash);
         else
             AddressBookData.push_front(addressHash);
-       
+
     }
     return AddressBookData;
 }
