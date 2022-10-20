@@ -198,6 +198,9 @@ public Q_SLOTS:
     void setNumBlocks(int count);
     /** Get restart command-line parameters and request restart */
     void handleRestart(QStringList args);
+    void setStakingStatusActive(bool fActive);
+    void updateStakingStatus();
+    void setStakingStatus();
 
     /** Notify the user of an event from the core network or transaction handling code.
        @param[in] title     the message box / notification title
@@ -207,9 +210,6 @@ public Q_SLOTS:
        @param[in] ret       pointer to a bool that will be modified to whether Ok was clicked (modal only)
     */
     void message(const QString& title, const QString& message, unsigned int style, bool* ret = NULL);
-
-    void setStakingStatus();
-    void setStakingInProgress(bool);
 
     void exitApp();
 
