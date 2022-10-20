@@ -3755,7 +3755,6 @@ bool CWallet::CreateCoinStake(
         const CKeyStore& keystore,
         const CBlockIndex* pindexPrev,
         unsigned int nBits,
-        int64_t nSearchInterval,
         CMutableTransaction& txNew,
         int64_t& nTxNewTime
         )
