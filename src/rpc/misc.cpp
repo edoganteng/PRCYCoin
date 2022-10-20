@@ -600,13 +600,18 @@ UniValue getstakingstatus(const UniValue& params, bool fHelp)
             "Returns an object containing various staking information.\n"
             "\nResult:\n"
             "{\n"
+            "  \"staking_enabled\": true|false,     (boolean) if staking is enabled/disabled in pivx.conf\n"
+            "  \"tiptime\": n,                      (integer) chain tip blocktime\n"
             "  \"haveconnections\": true|false,     (boolean) if network connections are present\n"
             "  \"walletunlocked\": true|false,      (boolean) if the wallet is unlocked\n"
             "  \"mintablecoins\": true|false,       (boolean) if the wallet has mintable coins\n"
             "  \"enoughcoins\": true|false,         (boolean) if available coins are greater than reserve balance\n"
             "  \"masternodes-synced\": true|false,  (boolean) if masternode data is synced\n"
             "  \"staking mode\": enabled|disabled,  (string) if staking is enabled or disabled\n"
-            "  \"staking status\": active|inactive, (string) if staking is active or inactive\n"
+            "  \"hashLastStakeAttempt\": xxx        (hex string) hash of last block on top of which the miner attempted to stake\n"
+            "  \"heightLastStakeAttempt\": n        (integer) height of last block on top of which the miner attempted to stake\n"
+            "  \"timeLastStakeAttempt\": n          (integer) time of last attempted stake\n"
+            "  \"staking_status\": true|false,      (boolean) if the wallet is staking or not\n"
             "}\n"
             "\nExamples:\n" +
             HelpExampleCli("getstakingstatus", "") + HelpExampleRpc("getstakingstatus", ""));
@@ -619,6 +624,8 @@ UniValue getstakingstatus(const UniValue& params, bool fHelp)
 
 
     UniValue obj(UniValue::VOBJ);
+    obj.push_back(Pair("staking_enabled", GetBoolArg("-staking", true)));
+    obj.push_back(Pair("tiptime", (int)chainActive.Tip()->nTime));
     obj.push_back(Pair("haveconnections", !vNodes.empty()));
     if (pwalletMain) {
         obj.push_back(Pair("walletunlocked", !pwalletMain->IsLocked()));
@@ -626,7 +633,12 @@ UniValue getstakingstatus(const UniValue& params, bool fHelp)
         obj.push_back(Pair("enoughcoins", nReserveBalance <= pwalletMain->GetBalance()));
     }
     obj.push_back(Pair("masternodes-synced", masternodeSync.IsSynced()));
-    obj.push_back(Pair("staking status", pwalletMain->pStakerStatus->IsActive()));
+    uint256 lastHash = pwalletMain->pStakerStatus->GetLastHash();
+    obj.push_back(Pair("hashLastStakeAttempt", lastHash.GetHex()));
+    obj.push_back(Pair("heightLastStakeAttempt", (mapBlockIndex.count(lastHash) > 0 ?
+                                                    mapBlockIndex.at(lastHash)->nHeight : -1)) );
+    obj.push_back(Pair("timeLastStakeAttempt", pwalletMain->pStakerStatus->GetLastTime()));
+    obj.push_back(Pair("staking_status", pwalletMain->pStakerStatus->IsActive()));
     /*if (pwalletMain->IsLocked()) {
         obj.push_back(Pair("staking mode", ("disabled")));
         obj.push_back(Pair("staking status", ("inactive (wallet locked)")));
