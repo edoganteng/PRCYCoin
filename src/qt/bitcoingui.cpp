@@ -1388,19 +1388,16 @@ void BitcoinGUI::setStakingStatus()
             stakingAction->setIcon(QIcon(":/icons/staking_waiting"));
             return;
         }
-        if (stakingState->text().contains("Enabling")) {
-            if (!nLastCoinStakeSearchInterval) return;
-        }
-        if (nLastCoinStakeSearchInterval) {
+        if (pwalletMain->pStakerStatus->IsActive()) {
             LogPrint(BCLog::STAKING,"Checking Staking Status: Enabled.\n");
             stakingState->setText(tr("Staking Enabled"));
             stakingState->setToolTip("Staking Enabled");
             stakingAction->setIcon(QIcon(":/icons/staking_active"));
-        /*} else if (nConsolidationTime > 0) {
-            nConsolidationTime --;
-            stakingState->setText(tr("Consolidating Transactions…"));
-            stakingState->setToolTip("Consolidating Transactions… Please wait few minutes for it to be consolidated.");
-            stakingAction->setIcon(QIcon(":/icons/staking_active"));*/
+            /*} else if (nConsolidationTime > 0) {
+        nConsolidationTime --;
+        stakingState->setText(tr("Consolidating Transactions…"));
+        stakingState->setToolTip("Consolidating Transactions… Please wait few minutes for it to be consolidated.");
+        stakingAction->setIcon(QIcon(":/icons/staking_active"));*/
         } else {
             LogPrint(BCLog::STAKING,"Checking Staking Status: Enabling...\n");
             stakingState->setText(tr("Enabling Staking..."));
