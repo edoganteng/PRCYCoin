@@ -23,12 +23,13 @@ unsigned int N_BITS_PD = 0x1e02b2dc; // Params().PoANewDiff()
 
 unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader* pblock)
 {
+    int nHeight = pindexLast->nHeight;
     if (N_BITS != 0 && pblock->IsPoABlockByVersion()) {
-        if (pindexLast->nHeight < Params().SoftFork()) {
+        if (nHeight < Params().SoftFork()) {
             LogPrint(BCLog::POA, "%s: returning N_BITS\n", __func__);
             return N_BITS;
         }
-        if (pindexLast->nHeight < Params().PoANewDiff()) {
+        if (nHeight < Params().PoANewDiff()) {
             LogPrint(BCLog::POA, "%s: returning N_BITS_SF\n", __func__);
             return N_BITS_SF;
         }
@@ -50,7 +51,7 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
         return Params().ProofOfWorkLimit().GetCompact();
     }
 
-    if (pindexLast->nHeight > Params().LAST_POW_BLOCK()) {
+    if (nHeight > Params().LAST_POW_BLOCK()) {
         uint256 bnTargetLimit = (~UINT256_ZERO >> 24);
         int64_t nTargetSpacing = 60;
         int64_t nTargetTimespan = 60 * 40;
@@ -62,7 +63,7 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
         }
         int64_t nActualSpacing = 0;
         //ig
-        if (pindexLast->nHeight != 0)
+        if (nHeight != 0)
             nActualSpacing = pindexLast->GetBlockTime() - pLastPoS->GetBlockTime();
 
         if (nActualSpacing < 0)
@@ -71,7 +72,7 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
         // ppcoin: target change every block
         // ppcoin: retarget with exponential moving toward target spacing
         uint256 bnNew;
-        if (pindexLast->nHeight < Params().SoftFork()) {
+        if (nHeight < Params().SoftFork()) {
             bnNew.SetCompact(pindexLast->nBits);
         } else {
             if (pindexLast->IsProofOfStake()) {
