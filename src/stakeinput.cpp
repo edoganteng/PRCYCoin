@@ -41,18 +41,20 @@ bool CPrcyStake::CreateTxIn(CWallet* pwallet, CTxIn& txIn, uint256 hashTxOut)
     return true;
 }
 
-CAmount CPrcyStake::GetValue()
+CAmount CPrcyStake::GetValue(const unsigned char* encryptionKey)
 {
     if (txFrom.IsCoinBase() || txFrom.IsCoinStake()) {
         return txFrom.vout[nPosition].nValue;
     }
 
-    const CWalletTx* pWalletTx = pwalletMain->GetWalletTx(txFrom.GetHash());
-    if (!pWalletTx) {
-        return 0;
-    }
-
-    return pwalletMain->getCTxOutValue(*pWalletTx, pWalletTx->vout[nPosition]);
+    CAmount nValueIn = 0;
+    uint256 val = txFrom.vout[nPosition].maskValue.amount;
+    uint256 mask = txFrom.vout[nPosition].maskValue.mask;
+    CKey decodedMask;
+    CPubKey sharedSec;
+    sharedSec.Set(encryptionKey, encryptionKey + 33);
+    ECDHInfo::Decode(mask.begin(), val.begin(), sharedSec, decodedMask, nValueIn);
+    return nValueIn;
 }
 
 bool CPrcyStake::CreateTxOuts(CWallet* pwallet, std::vector<CTxOut>& vout, CAmount nTotal)
