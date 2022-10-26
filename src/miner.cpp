@@ -476,6 +476,7 @@ CBlockTemplate* CreateNewPoABlock(const CScript& scriptPubKeyIn, const CPubKey& 
     }
 
     // Create new block
+    LogPrintf("%s : // Create new block\n", __func__);
     std::unique_ptr<CBlockTemplate> pblocktemplate(new CBlockTemplate());
     if (!pblocktemplate.get())
         return NULL;
@@ -485,9 +486,11 @@ CBlockTemplate* CreateNewPoABlock(const CScript& scriptPubKeyIn, const CPubKey& 
     pblock->SetNull(); // Is this required?
 
     // Set block version to differentiate PoA blocks from PoS blocks
+    LogPrintf("%s : // Set block version to differentiate PoA blocks from PoS blocks\n", __func__);
     pblock->SetVersionPoABlock();
 
     // Create coinbase tx
+    LogPrintf("%s : // Create coinbase tx\n", __func__);
     CMutableTransaction txNew;
     txNew.vin.resize(1);
     txNew.vin[0].prevout.SetNull();
@@ -498,25 +501,31 @@ CBlockTemplate* CreateNewPoABlock(const CScript& scriptPubKeyIn, const CPubKey& 
     std::copy(txPub.begin(), txPub.end(), std::back_inserter(txNew.vout[0].txPub));
     std::copy(txPriv.begin(), txPriv.end(), std::back_inserter(txNew.vout[0].txPriv));
 
+    LogPrintf("%s : // vtx.push_back(txNew);\n", __func__);
     pblock->vtx.push_back(txNew);
     pblocktemplate->vTxFees.push_back(-1);   // updated at end
     pblocktemplate->vTxSigOps.push_back(-1); // updated at end
 
+    LogPrintf("%s : // boost::this_thread::interruption_point();\n", __func__);
     boost::this_thread::interruption_point();
     pblock->nTime = GetAdjustedTime();
     CBlockIndex* pindexPrev = chainActive.Tip();
 
     //ATTENTION: This is used for setting always the easiest difficulty for PoA miners
+    LogPrintf("%s : // Getting the work required\n", __func__);
     pblock->nBits = GetNextWorkRequired(pindexPrev, pblock);
     pblock->nNonce = 0;
 
+    LogPrintf("%s : // Get previous PoA Height and PoS list\n", __func__);
     int nprevPoAHeight;
     nprevPoAHeight = GetListOfPoSInfo(pindexPrev->nHeight, pblock->posBlocksAudited);
+    LogPrintf("%s : // PoA Height and PoS list received\n", __func__);
 
     if (pblock->posBlocksAudited.size() == 0) {
         return NULL;
     }
 
+    LogPrintf("%s : // compute PoA block reward\n", __func__);
     //compute PoA block reward
     CAmount nReward;
     if (pindexPrev->nHeight >= Params().HardFork()) {
@@ -527,6 +536,7 @@ CBlockTemplate* CreateNewPoABlock(const CScript& scriptPubKeyIn, const CPubKey& 
     pblock->vtx[0].vout[0].nValue = nReward;
     pblock->vtx[0].txType = TX_TYPE_REVEAL_AMOUNT;
 
+    LogPrintf("%s : // Compute SharedSec\n", __func__);
     CPubKey sharedSec;
     sharedSec.Set(txPub.begin(), txPub.end());
     unsigned char zeroBlind[32];
@@ -542,6 +552,7 @@ CBlockTemplate* CreateNewPoABlock(const CScript& scriptPubKeyIn, const CPubKey& 
     const int nHeight = pindexPrev->nHeight + 1;
 
     // Fill in header
+    LogPrintf("%s : // Fill in header\n", __func__);
     pblock->hashPrevBlock = pindexPrev->GetBlockHash();
     if (nprevPoAHeight >= Params().START_POA_BLOCK()) {
         pblock->hashPrevPoABlock = *(chainActive[nprevPoAHeight]->phashBlock);
@@ -552,14 +563,18 @@ CBlockTemplate* CreateNewPoABlock(const CScript& scriptPubKeyIn, const CPubKey& 
     pblocktemplate->vTxSigOps[0] = GetLegacySigOpCount(pblock->vtx[0]);
 
     // Compute final coinbase transaction.
+    LogPrintf("%s : // Compute final coinbase transaction.\n", __func__);
     CMutableTransaction txCoinbase(pblock->vtx[0]);
     txCoinbase.vin[0].scriptSig = (CScript() << nHeight << CScriptNum(1)) + COINBASE_FLAGS;
     assert(txCoinbase.vin[0].scriptSig.size() <= 100);
 
+    LogPrintf("%s : // BuildMerkleTree\n", __func__);
     pblock->vtx[0] = txCoinbase;
     pblock->hashMerkleRoot = pblock->BuildMerkleTree();
 
+    LogPrintf("%s : // BuildPoAMerkleTree\n", __func__);
     pblock->hashPoAMerkleRoot = pblock->BuildPoAMerkleTree();
+    LogPrintf("%s : // ComputeMinedHash\n", __func__);
     pblock->minedHash = pblock->ComputeMinedHash();
 
     return pblocktemplate.release();
