@@ -3811,7 +3811,9 @@ bool CWallet::CreateCoinStake(
 
             // Found a kernel
             LogPrintf("CreateCoinStake : kernel found\n");
-            nCredit += stakeInput->GetValue();
+            CTransaction txFrom;
+            stakeInput->GetTxFrom(txFrom);
+            nCredit += getCTxOutValue(txFrom, txFrom.vout[stakeInput->GetPosition()]);
             std::vector<CTxOut> vout;
             if (!stakeInput->CreateTxOuts(this, vout, nCredit)) {
                 LogPrintf("%s : failed to get scriptPubKey\n", __func__);
