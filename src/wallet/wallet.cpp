@@ -3807,57 +3807,56 @@ bool CWallet::CreateCoinStake(
         // Make sure the wallet is unlocked and shutdown hasn't been requested
         if (IsLocked() || ShutdownRequested()) return false;
 
-        // update staker status (time)
-        pStakerStatus->SetLastTime(GetCurrentTimeSlot());
-
         nCredit = 0;
         uint256 hashProofOfStake = 0;
         nAttempts++;
-        //iterates each utxo inside of CheckStakeKernelHash()
-        if (Stake(pindexPrev, stakeInput.get(), nBits, nTxNewTime, hashProofOfStake)) {
+        fKernelFound = Stake(pindexPrev, stakeInput.get(), nBits, nTxNewTime, hashProofOfStake);
 
-            // Found a kernel
-            LogPrintf("CreateCoinStake : kernel found\n");
-            CTransaction txFrom;
-            stakeInput->GetTxFrom(txFrom);
-            nCredit += getCTxOutValue(txFrom, txFrom.vout[stakeInput->GetPosition()]);
-            std::vector<CTxOut> vout;
-            if (!stakeInput->CreateTxOuts(this, vout, nCredit)) {
-                LogPrintf("%s : failed to get scriptPubKey\n", __func__);
-                continue;
-            }
-            txNew.vout.insert(txNew.vout.end(), vout.begin(), vout.end());
+        // update staker status (time)
+        pStakerStatus->SetLastTime(nTxNewTime);
 
-            // Calculate reward
-            CAmount nReward;
-            nReward = GetBlockValue(chainActive.Height());
-            txNew.vout[1].nValue = nCredit;
-            txNew.vout[2].nValue = nReward;
+        if (!fKernelFound) continue;
 
-            // Limit size
-            unsigned int nBytes = ::GetSerializeSize(txNew, SER_NETWORK, PROTOCOL_VERSION);
-            if (nBytes >= DEFAULT_BLOCK_MAX_SIZE / 5)
-                return error("CreateCoinStake : exceeded coinstake size limit");
-
-            //Masternode payment
-            if (!FillBlockPayee(txNew, 0, true)) {
-                LogPrintf("%s: Cannot fill block payee\n", __func__);
-                return false;
-            }
-
-            uint256 hashTxOut = txNew.GetHash();
-            CTxIn in;
-            if (!stakeInput->CreateTxIn(this, in, hashTxOut)) {
-                LogPrintf("%s : failed to create TxIn\n", __func__);
-                txNew.vin.clear();
-                txNew.vout.clear();
-                continue;
-            }
-            txNew.vin.push_back(in);
-
-            fKernelFound = true;
-            break;
+        // Found a kernel
+        LogPrintf("CreateCoinStake : kernel found\n");
+        CTransaction txFrom;
+        stakeInput->GetTxFrom(txFrom);
+        nCredit += getCTxOutValue(txFrom, txFrom.vout[stakeInput->GetPosition()]);
+        std::vector<CTxOut> vout;
+        if (!stakeInput->CreateTxOuts(this, vout, nCredit)) {
+            LogPrintf("%s : failed to get scriptPubKey\n", __func__);
+            continue;
         }
+        txNew.vout.insert(txNew.vout.end(), vout.begin(), vout.end());
+
+        // Calculate reward
+        CAmount nReward;
+        nReward = GetBlockValue(chainActive.Height());
+        txNew.vout[1].nValue = nCredit;
+        txNew.vout[2].nValue = nReward;
+
+        // Limit size
+        unsigned int nBytes = ::GetSerializeSize(txNew, SER_NETWORK, PROTOCOL_VERSION);
+        if (nBytes >= DEFAULT_BLOCK_MAX_SIZE / 5)
+            return error("CreateCoinStake : exceeded coinstake size limit");
+
+        //Masternode payment
+        if (!FillBlockPayee(txNew, 0, true)) {
+            LogPrintf("%s: Cannot fill block payee\n", __func__);
+            return false;
+        }
+
+        uint256 hashTxOut = txNew.GetHash();
+        CTxIn in;
+        if (!stakeInput->CreateTxIn(this, in, hashTxOut)) {
+            LogPrintf("%s : failed to create TxIn\n", __func__);
+            txNew.vin.clear();
+            txNew.vout.clear();
+            continue;
+        }
+        txNew.vin.emplace_back(in);
+
+        break;
     }
     LogPrint(BCLog::STAKING, "%s: attempted staking %d times\n", __func__, nAttempts);
     if (!fKernelFound)
@@ -5578,7 +5577,11 @@ void CWallet::SetNull()
     walletStakingInProgress = false;
 
     // Stake Settings
-    pStakerStatus = new CStakerStatus();
+    if (pStakerStatus) {
+        pStakerStatus->SetNull();
+    } else {
+        pStakerStatus = new CStakerStatus();
+    }
     nStakeSplitThreshold = Params().MinimumStakeAmount();
     nStakeSetUpdateTime = 300; // 5 minutes
 
