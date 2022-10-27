@@ -83,6 +83,7 @@ protected:
 private:
     ClientModel* clientModel;
     WalletFrame* walletFrame;
+    WalletModel* walletModel;
 
     UnitDisplayStatusBarControl* unitDisplayControl;
     QLabel* labelStakingIcon;

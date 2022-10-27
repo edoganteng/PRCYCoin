@@ -1360,7 +1360,7 @@ void BitcoinGUI::setStakingStatus()
             fMultiSend = pwalletMain->isMultiSendEnabled();
             stkStatus = pwalletMain->ReadStakingStatus();
         }
-        if (!stkStatus || pwalletMain->IsLocked()) {
+        if (!stkStatus || walletModel->isWalletLocked()) {
             LogPrint(BCLog::STAKING,"Checking Staking Status: Disabled.\n");
             stakingState->setText(tr("Staking Disabled"));
             stakingState->setToolTip("Staking Disabled");
@@ -1388,7 +1388,7 @@ void BitcoinGUI::setStakingStatus()
             stakingAction->setIcon(QIcon(":/icons/staking_waiting"));
             return;
         }
-        if (pwalletMain->pStakerStatus->IsActive()) {
+        if (walletModel->isStakingStatusActive()) {
             LogPrint(BCLog::STAKING,"Checking Staking Status: Enabled.\n");
             stakingState->setText(tr("Staking Enabled"));
             stakingState->setToolTip("Staking Enabled");
@@ -1423,7 +1423,9 @@ void BitcoinGUI::setStakingStatusActive(bool fActive)
 }
 
 void BitcoinGUI::updateStakingStatus(){
-    setStakingStatusActive(pwalletMain->pStakerStatus->IsActive());
+    setStakingStatusActive(walletModel &&
+                           !walletModel->isWalletLocked() &&
+                           walletModel->isStakingStatusActive());
 }
 
 #ifdef ENABLE_WALLET
