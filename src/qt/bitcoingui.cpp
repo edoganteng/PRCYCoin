@@ -1423,7 +1423,7 @@ void BitcoinGUI::setStakingStatusActive(bool fActive)
 }
 
 void BitcoinGUI::updateStakingStatus(){
-    setStakingStatusActive(pwalletMain->pStakerStatus->IsActive());
+    setStakingStatusActive(!pwalletMain->IsLocked() && pwalletMain->pStakerStatus->IsActive());
 }
 
 #ifdef ENABLE_WALLET
