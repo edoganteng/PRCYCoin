@@ -137,6 +137,15 @@ bool IsImportingOrReindexing() {
     return fImporting || fReindex;
 }
 
+bool WalletModel::isWalletUnlocked() const {
+    EncryptionStatus status = getEncryptionStatus();
+    return status == Unencrypted || status == Unlocked;
+}
+
+bool WalletModel::isWalletLocked() const {
+    return getEncryptionStatus() == Locked;
+}
+
 void WalletModel::pollBalanceChanged()
 {
     if (wallet->walletUnlockCountStatus == 1) {
