@@ -216,8 +216,7 @@ void HistoryPage::updateTableData(CWallet* wallet)
                 QTableWidgetItem* cell = new QTableWidgetItem();
                 switch (col) {
                 case 0: /*date*/
-                    date = QDateTime::fromString(data, "MM/dd/yy hh:mm:ss").addYears(100);
-                    cell->setData(0, date);
+                    cell->setData(0, data);
                     break;
                 case 3: /*amount*/
                     if (settings.value("fHideBalance", false).toBool()) {
@@ -264,7 +263,7 @@ void HistoryPage::updateFilter()
 
     for (int row = 0; row < ui->tableView->rowCount(); row++) {
         bool hide = false;
-        QDateTime date = QDateTime::fromString(ui->tableView->item(row, 0)->text(), "yyyy-MM-ddThh:mm:ss");
+        QDateTime date = QDateTime::fromString(ui->tableView->item(row, 0)->text(), "MM/dd/yy hh:mm").addYears(100);
         QString type = ui->tableView->item(row, 1)->text();
         QString address = ui->tableView->item(row, 2)->text();
         auto amount = ui->tableView->item(row, 3)->text().toFloat();

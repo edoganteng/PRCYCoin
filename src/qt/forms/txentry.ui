@@ -175,7 +175,7 @@
        </column>
        <column>
         <property name="text">
-         <string>MM/DD/YYYY</string>
+         <string>DATE</string>
         </property>
        </column>
       </widget>

@@ -503,11 +503,11 @@ void OverviewPage::updateRecentTransactions() {
                     CWalletTx wtx = pwalletMain->mapWallet[txHash];
                     int64_t txTime = wtx.GetComputedTxTime();
                     if (pwalletMain->IsLocked()) {
-                        entry->setData(txTime, "Locked; Hidden", "Locked; Hidden", "Locked; Hidden", "Locked; Hidden");
+                        entry->setData("Locked; Hidden", "Locked; Hidden", "Locked; Hidden", "Locked; Hidden", "Locked; Hidden");
                     } else if (settings.value("fHideBalance", false).toBool()) {
-                        entry->setData(txTime, "Hidden", "Hidden", "Hidden", "Hidden");
+                        entry->setData("Hidden", "Hidden", "Hidden", "Hidden", "Hidden");
                     } else {
-                        entry->setData(txTime, txs[i]["address"] , txs[i]["amount"], txs[i]["id"], txs[i]["type"]);
+                        entry->setData(GUIUtil::dateTimeStr(txTime), txs[i]["address"] , txs[i]["amount"], txs[i]["id"], txs[i]["type"]);
                     }
 
                     if (i % 2 == 0) {

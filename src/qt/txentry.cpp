@@ -50,25 +50,21 @@ void TxEntry::resizeEvent(QResizeEvent* event)
 }
 
 
-void TxEntry::setData(int64_t Date, QString Address, QString Amount, QString ID, QString Type)
+void TxEntry::setData(QString Date, QString Address, QString Amount, QString ID, QString Type)
 {
-    QDateTime dateTime = QDateTime::fromTime_t((qint32)Date);
-    
     ui->labelTxAmount->setText(Amount);
-    ui->labelDate->setText(dateTime.date().toString("MMMM dd yyyy") + QString("\n") + dateTime.toString("hh:mm:ss"));
+    ui->labelDate->setText(Date);
     ui->labelDate->setAlignment(Qt::AlignRight | Qt::AlignTop);
     ui->tableWidgetDetails->insertRow(0);
     ui->tableWidgetDetails->setItem(0, 0, new QTableWidgetItem(ID));
     ui->tableWidgetDetails->setItem(0, 1, new QTableWidgetItem(Address));
-    ui->tableWidgetDetails->setItem(0, 2, new QTableWidgetItem(dateTime.time().toString("hh:mm:ss")));
+    ui->tableWidgetDetails->setItem(0, 2, new QTableWidgetItem(Date));
     ui->tableWidgetDetails->item(0, 2)->setTextAlignment(Qt::AlignHCenter);
-    ui->tableWidgetDetails->setHorizontalHeaderItem(2, new QTableWidgetItem(dateTime.date().toString("MM/dd/yyyy")));
-    ui->tableWidgetDetails->horizontalHeaderItem(2)->setTextAlignment(Qt::AlignHCenter | Qt::AlignBottom);
     if (Type == "Sent")
         ui->labelTypeIcon->setPixmap(QIcon(":icons/sent").pixmap(QSize(24,24)));
     else if (Type == "Received")
         ui->labelTypeIcon->setPixmap(QIcon(":icons/received").pixmap(QSize(24,24))); 
-    else ui->labelTypeIcon->setPixmap(QIcon(":icons/reward").pixmap(QSize(24,24)));  
+    else ui->labelTypeIcon->setPixmap(QIcon(":icons/reward").pixmap(QSize(24,24)));
 }
 void TxEntry::on_pushButtonExpand_clicked()
 {
