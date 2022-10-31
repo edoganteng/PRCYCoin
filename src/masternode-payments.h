@@ -184,8 +184,8 @@ public:
     std::string GetStrMessage() const;
 
     bool Sign(CKey& keyMasternode, CPubKey& pubKeyMasternode);
+    bool CheckSignature() const;
     bool IsValid(CNode* pnode, std::string& strError);
-    bool SignatureValid() const;
     void Relay();
 
     void AddPayee(std::vector<unsigned char> payeeIn)
