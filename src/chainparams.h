@@ -134,6 +134,7 @@ public:
     int HardForkRingSize() const { return nHardForkBlockRingSize;}
     int HardForkRingSize2() const { return nHardForkBlockRingSize2;}
     bool IsStakeModifierV2(const int nHeight) const { return nHeight >= nBlockStakeModifierlV2; }
+    int NewSigsActive(const int nHeight) const { return nHeight >= nBlockEnforceNewMessageSignatures; }
 
     //For PoA block time
     int POA_BLOCK_TIME() const { return nPoABlockTime; }
@@ -205,6 +206,7 @@ protected:
     int nBIP65ActivationHeight;
     int nBlockTimeProtocolV2;
     int nBlockStakeModifierlV2;
+    int nBlockEnforceNewMessageSignatures;
 
     //For PoA blocks
     int nPoABlockTime;

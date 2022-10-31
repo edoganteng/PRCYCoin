@@ -176,6 +176,9 @@ public:
         nBlockStakeModifierlV2 = 1000000;
         nBlockTimeProtocolV2 = 1000000;
 
+        // New P2P messages signatures
+        nBlockEnforceNewMessageSignatures = 1000000;
+
         /**
          * Build the genesis block. Note that the output of the genesis coinbase cannot
          * be spent as it did not originally exist in the database.
@@ -334,6 +337,9 @@ public:
         nBlockStakeModifierlV2 = 180000;
         nBlockTimeProtocolV2 = 180000;
 
+        // New P2P messages signatures
+        nBlockEnforceNewMessageSignatures = 190000;
+
         //! Modify the testnet genesis block so the timestamp is valid for a later start.
         genesis.nTime = 1608422400;
         genesis.nNonce = 23323155;
@@ -441,6 +447,9 @@ public:
         nModifierUpdateBlock = 0;       //approx Mon, 17 Apr 2017 04:00:00 GMT
         nBlockStakeModifierlV2 = 255;
         nBlockTimeProtocolV2 = 999999999;
+
+        // New P2P messages signatures
+        nBlockEnforceNewMessageSignatures = 1;
 
         //! Modify the regtest genesis block so the timestamp is valid for a later start.
         genesis.nTime = 1608422399;
