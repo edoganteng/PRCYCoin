@@ -685,42 +685,86 @@ void CMasternodeBroadcast::Relay()
     RelayInv(inv);
 }
 
-bool CMasternodeBroadcast::Sign(CKey& keyCollateralAddress)
+uint256 CMasternodeBroadcast::GetHash() const
 {
-    std::string strError = "";
-
-    std::string vchPubKey(pubKeyCollateralAddress.begin(), pubKeyCollateralAddress.end());
-    std::string vchPubKey2(pubKeyMasternode.begin(), pubKeyMasternode.end());
-
-    sigTime = GetAdjustedTime();
-    std::string ss = addr.ToString();
-    std::string strMessage = GetStrMessage();
-
-    if (!CMessageSigner::SignMessage(strMessage, sig, keyCollateralAddress))
-        return error("CMasternodeBroadcast::Sign() - Error.");
-
-    if (!CMessageSigner::VerifyMessage(pubKeyCollateralAddress, sig, strMessage, strError))
-        return error("CMasternodeBroadcast::Sign() - Error: %s", strError);
-
-    return true;
+    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+    ss << sigTime;
+    ss << pubKeyCollateralAddress;
+    return ss.GetHash();
 }
 
-bool CMasternodeBroadcast::VerifySignature()
+uint256 CMasternodeBroadcast::GetSignatureHash() const
 {
-    std::string strError;
-
-    if(!CMessageSigner::VerifyMessage(pubKeyCollateralAddress, sig, GetStrMessage(), strError))
-        return error("CMasternodeBroadcast::VerifySignature() - Error: %s", strError);
-
-    return true;
+    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+    ss << addr;
+    ss << sigTime;
+    ss << pubKeyCollateralAddress;
+    ss << pubKeyMasternode;
+    ss << protocolVersion;
+    return ss.GetHash();
 }
 
-std::string CMasternodeBroadcast::GetStrMessage()
+std::string CMasternodeBroadcast::GetStrMessage() const
 {
     HEX_DATA_STREAM_PROTOCOL(protocolVersion) << addr.ToString() << sigTime << pubKeyCollateralAddress << pubKeyMasternode << protocolVersion;
     std::string strMessage = HEX_STR(ser);
-
     return strMessage;
+}
+
+bool CMasternodeBroadcast::Sign(CKey& keyCollateralAddress)
+{
+    int nHeight;
+    {
+        LOCK(cs_main);
+        nHeight = chainActive.Height();
+    }
+
+    std::string strError = "";
+    sigTime = GetAdjustedTime();
+
+    if (Params().NewSigsActive(nHeight)) {
+        uint256 hash = GetSignatureHash();
+
+        if(!CHashSigner::SignHash(hash, keyCollateralAddress, sig)) {
+            return error("%s : SignHash() failed", __func__);
+        }
+
+        if (!CHashSigner::VerifyHash(hash, pubKeyCollateralAddress, sig, strError)) {
+            return error("%s : VerifyHash() failed, error: %s", __func__, strError);
+        }
+    } else {
+        // use old signature format
+        std::string strMessage = GetStrMessage();
+
+        if (!CMessageSigner::SignMessage(strMessage, sig, keyCollateralAddress)) {
+            return error("%s : SignMessage() failed", __func__);
+        }
+
+        if (!CMessageSigner::VerifyMessage(pubKeyCollateralAddress, sig, strMessage, strError)) {
+            return error("%s : VerifyMessage() failed, error: %s\n", __func__, strError);
+        }
+    }
+
+    return true;
+}
+
+bool CMasternodeBroadcast::VerifySignature() const
+{
+    std::string strError = "";
+    uint256 hash = GetSignatureHash();
+
+    if (CHashSigner::VerifyHash(hash, pubKeyCollateralAddress, sig, strError))
+        return true;
+
+    // if new signature fails, try old format
+    std::string strMessage = GetStrMessage();
+
+    if (!CMessageSigner::VerifyMessage(pubKeyCollateralAddress, sig, strMessage, strError)) {
+        return error("%s : Got bad masternode signature for %s: %s\n", __func__,
+                vin.prevout.hash.ToString(), strError);
+    }
+
+    return true;
 }
 
 CMasternodePing::CMasternodePing() :
