@@ -1652,8 +1652,7 @@ void CBudgetProposalBroadcast::Relay()
 }
 
 CBudgetVote::CBudgetVote() :
-        vchSig(),
-        nMessVersion(MessageVersion::MESS_VER_HASH),
+        CSignedMessage(),
         fValid(true),
         fSynced(false),
         vin(),
@@ -1663,8 +1662,7 @@ CBudgetVote::CBudgetVote() :
 { }
 
 CBudgetVote::CBudgetVote(CTxIn vinIn, uint256 nProposalHashIn, int nVoteIn) :
-        vchSig(),
-        nMessVersion(MessageVersion::MESS_VER_HASH),
+        CSignedMessage(),
         fValid(true),
         fSynced(false),
         vin(vinIn),
@@ -1697,70 +1695,14 @@ std::string CBudgetVote::GetStrMessage() const
     return strMessage;
 }
 
-bool CBudgetVote::Sign(CKey& keyMasternode, CPubKey& pubKeyMasternode)
-{
-    int nHeight;
-    {
-        LOCK(cs_main);
-        nHeight = chainActive.Height();
-    }
-
-    std::string strError = "";
-
-    if (Params().NewSigsActive(nHeight)) {
-        nMessVersion = MessageVersion::MESS_VER_HASH;
-        uint256 hash = GetSignatureHash();
-
-        if(!CHashSigner::SignHash(hash, keyMasternode, vchSig)) {
-            return error("%s : SignHash() failed", __func__);
-        }
-
-        if (!CHashSigner::VerifyHash(hash, pubKeyMasternode, vchSig, strError)) {
-            return error("%s : VerifyHash() failed, error: %s", __func__, strError);
-        }
-
-    } else {
-        // use old signature format
-        nMessVersion = MessageVersion::MESS_VER_STRMESS;
-        std::string strMessage = GetStrMessage();
-
-        if (!CMessageSigner::SignMessage(strMessage, vchSig, keyMasternode)) {
-            return error("%s : SignMessage() failed", __func__);
-        }
-
-        if (!CMessageSigner::VerifyMessage(pubKeyMasternode, vchSig, strMessage, strError)) {
-            return error("%s : VerifyMessage() failed, error: %s\n", __func__, strError);
-        }
-    }
-
-    return true;
-}
-
-bool CBudgetVote::CheckSignature(bool fSignatureCheck) const
+const CPubKey* CBudgetVote::GetPublicKey(std::string& strErrorRet) const
 {
     CMasternode* pmn = mnodeman.Find(vin);
-    if (pmn == nullptr) {
-        return error("%s : vinMasternode not found", __func__);
+    if(pmn) {
+        return &(pmn->pubKeyMasternode);
     }
-
-    if (!fSignatureCheck) return true;
-
-    std::string strError = "";
-
-    if (nMessVersion == MessageVersion::MESS_VER_HASH) {
-        uint256 hash = GetSignatureHash();
-        if(!CHashSigner::VerifyHash(hash, pmn->pubKeyMasternode, vchSig, strError))
-            return error("%s : VerifyHash failed for %s: %s", __func__,
-                    vin.prevout.hash.ToString(), strError);
-
-    } else {
-        std::string strMessage = GetStrMessage();
-        if(!CMessageSigner::VerifyMessage(pmn->pubKeyMasternode, vchSig, strMessage, strError))
-            return error("%s : VerifyMessage failed for %s: %s", __func__,
-                    vin.prevout.hash.ToString(), strError);
-    }
-
-    return true;
+    strErrorRet = strprintf("Unable to find masternode vin %s", vin.prevout.hash.GetHex());
+    return nullptr;
 }
 
 CFinalizedBudget::CFinalizedBudget() :
@@ -2066,13 +2008,19 @@ void CFinalizedBudget::SubmitVote()
     CPubKey pubKeyMasternode;
     CKey keyMasternode;
 
+    bool fNewSigs = false;
+    {
+        LOCK(cs_main);
+        fNewSigs = chainActive.NewSigsActive();
+    }
+
     if (!CMessageSigner::GetKeysFromSecret(strMasterNodePrivKey, keyMasternode, pubKeyMasternode)) {
         LogPrint(BCLog::MNBUDGET,"CFinalizedBudget::SubmitVote - Error upon calling SetKey\n");
         return;
     }
 
     CFinalizedBudgetVote vote(activeMasternode.vin, GetHash());
-    if (!vote.Sign(keyMasternode, pubKeyMasternode)) {
+    if (!vote.Sign(keyMasternode, pubKeyMasternode, fNewSigs)) {
         LogPrint(BCLog::MNBUDGET,"CFinalizedBudget::SubmitVote - Failure to sign.");
         return;
     }
@@ -2113,8 +2061,7 @@ void CFinalizedBudgetBroadcast::Relay()
 }
 
 CFinalizedBudgetVote::CFinalizedBudgetVote() :
-        vchSig(),
-        nMessVersion(MessageVersion::MESS_VER_HASH),
+        CSignedMessage(),
         fValid(true),
         fSynced(false),
         vin(),
@@ -2123,8 +2070,7 @@ CFinalizedBudgetVote::CFinalizedBudgetVote() :
 { }
 
 CFinalizedBudgetVote::CFinalizedBudgetVote(CTxIn vinIn, uint256 nBudgetHashIn) :
-        vchSig(),
-        nMessVersion(MessageVersion::MESS_VER_HASH),
+        CSignedMessage(),
         fValid(true),
         fSynced(false),
         vin(vinIn),
@@ -2155,70 +2101,14 @@ std::string CFinalizedBudgetVote::GetStrMessage() const
     return strMessage;
 }
 
-bool CFinalizedBudgetVote::Sign(CKey& keyMasternode, CPubKey& pubKeyMasternode)
-{
-    int nHeight;
-    {
-        LOCK(cs_main);
-        nHeight = chainActive.Height();
-    }
-
-    std::string strError = "";
-
-    if (Params().NewSigsActive(nHeight)) {
-        nMessVersion = MessageVersion::MESS_VER_HASH;
-        uint256 hash = GetSignatureHash();
-
-        if(!CHashSigner::SignHash(hash, keyMasternode, vchSig)) {
-            return error("%s : SignHash() failed", __func__);
-        }
-
-        if (!CHashSigner::VerifyHash(hash, pubKeyMasternode, vchSig, strError)) {
-            return error("%s : VerifyHash() failed, error: %s", __func__, strError);
-        }
-
-    } else {
-        // use old signature format
-        nMessVersion = MessageVersion::MESS_VER_STRMESS;
-        std::string strMessage = GetStrMessage();
-
-        if (!CMessageSigner::SignMessage(strMessage, vchSig, keyMasternode)) {
-            return error("%s : SignMessage() failed", __func__);
-        }
-
-        if (!CMessageSigner::VerifyMessage(pubKeyMasternode, vchSig, strMessage, strError)) {
-            return error("%s : VerifyMessage() failed, error: %s\n", __func__, strError);
-        }
-    }
-
-    return true;
-}
-
-bool CFinalizedBudgetVote::CheckSignature(bool fSignatureCheck) const
+const CPubKey* CFinalizedBudgetVote::GetPublicKey(std::string& strErrorRet) const
 {
     CMasternode* pmn = mnodeman.Find(vin);
-    if (pmn == nullptr) {
-        return error("%s : vinMasternode not found", __func__);
+    if(pmn) {
+        return &(pmn->pubKeyMasternode);
     }
-
-    if (!fSignatureCheck) return true;
-
-    std::string strError = "";
-
-    if (nMessVersion == MessageVersion::MESS_VER_HASH) {
-        uint256 hash = GetSignatureHash();
-        if(!CHashSigner::VerifyHash(hash, pmn->pubKeyMasternode, vchSig, strError))
-            return error("%s : VerifyHash failed for %s: %s", __func__,
-                    vin.prevout.hash.ToString(), strError);
-
-    } else {
-        std::string strMessage = GetStrMessage();
-        if(!CMessageSigner::VerifyMessage(pmn->pubKeyMasternode, vchSig, strMessage, strError))
-            return error("%s : VerifyMessage failed for %s: %s", __func__,
-                    vin.prevout.hash.ToString(), strError);
-    }
-
-    return true;
+    strErrorRet = strprintf("Unable to find masternode vin %s", vin.prevout.hash.GetHex());
+    return nullptr;
 }
 
 std::string CBudgetManager::ToString() const
