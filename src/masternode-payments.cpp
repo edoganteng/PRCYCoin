@@ -397,6 +397,12 @@ void CMasternodePayments::ProcessMessageMasternodePayments(CNode* pfrom, std::st
             return;
         }
 
+        // reject old signatures 6000 blocks after hard-fork
+        if (winner.nMessVersion != MessageVersion::MESS_VER_HASH && Params().NewSigsActive(winner.nBlockHeight - 6000)) {
+            LogPrintf("%s : nMessVersion=%d not accepted anymore at block %d", __func__, winner.nMessVersion, nHeight);
+            return;
+        }
+
         std::string strError = "";
         if (!winner.IsValid(pfrom, strError)) {
             return;
@@ -442,15 +448,9 @@ std::string CMasternodePaymentWinner::GetStrMessage() const
 
 bool CMasternodePaymentWinner::Sign(CKey& keyMasternode, CPubKey& pubKeyMasternode)
 {
-    int nHeight;
-    {
-        LOCK(cs_main);
-        nHeight = chainActive.Height();
-    }
-
     std::string strError = "";
 
-    if (Params().NewSigsActive(nHeight)) {
+    if (Params().NewSigsActive(nBlockHeight - 20)) {
         uint256 hash = GetSignatureHash();
 
         if(!CHashSigner::SignHash(hash, keyMasternode, vchSig)) {
