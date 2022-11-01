@@ -533,9 +533,8 @@ bool CMasternodeBroadcast::CheckAndUpdate(int& nDos)
     else {
         // this broadcast older than we have, it's bad.
         if (pmn->sigTime > sigTime) {
-            LogPrint(BCLog::MASTERNODE,"mnb - Bad sigTime %d for Masternode %s (existing broadcast is at %d)\n",
-                sigTime, vin.prevout.hash.ToString(), pmn->sigTime);
-            return false;
+            return error("%s : Bad sigTime %d for Masternode %20s %105s (existing broadcast is at %d)",
+                          __func__, sigTime, addr.ToString(), vin.ToString(), pmn->sigTime);
         }
         // masternode is not enabled yet/already, nothing to update
         if (!pmn->IsEnabled()) return true;
@@ -656,13 +655,13 @@ CMasternodePing::CMasternodePing() :
         CSignedMessage(),
         vin(),
         blockHash(0),
-        sigTime(0)
+        sigTime(GetAdjustedTime())
 { }
 
 CMasternodePing::CMasternodePing(CTxIn& newVin) :
         CSignedMessage(),
-        vin(),
-        sigTime(0)
+        vin(newVin),
+        sigTime(GetAdjustedTime())
 {
     int nHeight;
     {
