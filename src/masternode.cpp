@@ -141,11 +141,6 @@ std::string CMasternode::GetStrMessage() const
     return strMessage;
 }
 
-const CPubKey* CMasternode::GetPublicKey(std::string& strErrorRet) const
-{
-    return &(pubKeyMasternode);
-}
-
 //
 // When a new masternode broadcast is sent, update our information
 //
@@ -706,16 +701,6 @@ std::string CMasternodePing::GetStrMessage() const
     HEX_DATA_STREAM_PROTOCOL(PROTOCOL_VERSION) << vin.ToString() << blockHash.ToString() << sigTime;
     std::string strMessage = HEX_STR(ser);
     return strMessage;
-}
-
-const CPubKey* CMasternodePing::GetPublicKey(std::string& strErrorRet) const
-{
-    CMasternode* pmn = mnodeman.Find(vin);
-    if(pmn) {
-        return &(pmn->pubKeyMasternode);
-    }
-    strErrorRet = strprintf("Unable to find masternode vin %s", vin.prevout.hash.GetHex());
-    return nullptr;
 }
 
 bool CMasternodePing::CheckAndUpdate(int& nDos, bool fRequireEnabled, bool fCheckSigTimeOnly)

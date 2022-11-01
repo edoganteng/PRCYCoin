@@ -161,16 +161,6 @@ std::string CMasternodePaymentWinner::GetStrMessage() const
     return strMessage;
 }
 
-const CPubKey* CMasternodePaymentWinner::GetPublicKey(std::string& strErrorRet) const
-{
-    CMasternode* pmn = mnodeman.Find(vinMasternode);
-    if(pmn) {
-        return &(pmn->pubKeyMasternode);
-    }
-    strErrorRet = strprintf("Unable to find masternode vin %s", vinMasternode.prevout.hash.GetHex());
-    return nullptr;
-}
-
 bool CMasternodePaymentWinner::IsValid(CNode* pnode, std::string& strError)
 {
     CMasternode* pmn = mnodeman.Find(vinMasternode);
