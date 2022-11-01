@@ -108,20 +108,6 @@ CMasternode::CMasternode(const CMasternode& other) :
     lastTimeChecked = 0;
 }
 
-CMasternode::CMasternode(const CMasternodeBroadcast& mnb) :
-        CMasternode((CMasternode) mnb)
-{
-    LOCK(cs);
-    activeState = MASTERNODE_ENABLED;
-    cacheInputAge = 0;
-    cacheInputAgeBlock = 0;
-    unitTest = false;
-    allowFreeTx = true;
-    nActiveState = MASTERNODE_ENABLED,
-    nScanningErrorCount = 0;
-    nLastScanningErrorBlockHeight = 0;
-}
-
 uint256 CMasternode::GetSignatureHash() const
 {
     CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);

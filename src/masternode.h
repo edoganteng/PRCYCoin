@@ -152,7 +152,6 @@ public:
 
     CMasternode();
     CMasternode(const CMasternode& other);
-    CMasternode(const CMasternodeBroadcast& mnb);
 
     // override CSignedMessage functions
     uint256 GetSignatureHash() const override;
