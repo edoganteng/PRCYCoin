@@ -542,7 +542,7 @@ bool CMasternodeBroadcast::CheckAndUpdate(int& nDos)
 
     CScript pubkeyScript;
     pubkeyScript = GetScriptForDestination(pubKeyCollateralAddress);
-    LogPrint(BCLog::MASTERNODE, "CMasternodeBroadcast::CheckAndUpdate: pubKeyCollateralAddress=%s\n", pubkeyScript.ToString());
+    LogPrint(BCLog::MASTERNODE, "%s: pubKeyCollateralAddress=%s\n", __func__, pubkeyScript.ToString());
     if ((pubkeyScript.size() != 35) && (pubkeyScript.size() != 67)) {
         LogPrint(BCLog::MASTERNODE,"mnb - pubkey the wrong size\n");
         nDos = 100;

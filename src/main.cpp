@@ -1584,7 +1584,8 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState& state, const CTransa
 
     // Check transaction
     if (!CheckTransaction(tx, true, state))
-        return state.DoS(100, error("%s : CheckTransaction failed", __func__), REJECT_INVALID, "bad-tx");
+        return state.DoS(100, error("%s : CheckTransaction failed",
+                __func__), REJECT_INVALID, "bad-tx");
 
     // Coinbase is only valid in a block, not as a loose transaction
     if (tx.IsCoinBase())
@@ -1605,9 +1606,8 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState& state, const CTransa
     // Rather not work on nonstandard transactions (unless -testnet/-regtest)
     std::string reason;
     if (Params().RequireStandard() && !IsStandardTx(tx, reason))
-        return state.DoS(0,
-            error("AcceptToMemoryPool : nonstandard transaction: %s", reason),
-            REJECT_NONSTANDARD, reason);
+        return state.DoS(0, error("%s : nonstandard transaction: %s",
+                    __func__, reason), REJECT_NONSTANDARD, reason);
     // is it already in the memory pool?
     uint256 hash = tx.GetHash();
     if (pool.exists(hash)) {
@@ -1665,7 +1665,8 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState& state, const CTransa
 
         // Check for non-standard pay-to-script-hash in inputs
         if (Params().RequireStandard() && !AreInputsStandard(tx, view))
-            return error("AcceptToMemoryPool: nonstandard transaction input");
+            return error("%s : nonstandard transaction input", __func__);
+
         // Check that the transaction doesn't have an excessive number of
         // sigops, making it impossible to mine. Since the coinbase transaction
         // itself can contain sigops MAX_TX_SIGOPS is less than
@@ -1675,10 +1676,8 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState& state, const CTransa
             unsigned int nSigOps = GetLegacySigOpCount(tx);
             unsigned int nMaxSigOps = MAX_TX_SIGOPS_CURRENT;
             if (nSigOps > nMaxSigOps)
-                return state.DoS(0,
-                    error("AcceptToMemoryPool : too many sigops %s, %d > %d",
-                        hash.ToString(), nSigOps, nMaxSigOps),
-                    REJECT_NONSTANDARD, "bad-txns-too-many-sigops");
+                return state.DoS(0, error("%s : too many sigops %s, %d > %d",
+                        __func__, hash.ToString(), nSigOps, nMaxSigOps), REJECT_NONSTANDARD, "bad-txns-too-many-sigops");
         }
 
         CAmount nFees = tx.nTxFee;
@@ -1691,8 +1690,8 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState& state, const CTransa
         if (!ignoreFees) {
             CAmount txMinFee = GetMinRelayFee(tx, nSize, true);
             if (fLimitFree && nFees < txMinFee)
-                return state.DoS(0, error("AcceptToMemoryPool : not enough fees %s, %d < %d", hash.ToString(), nFees, txMinFee),
-                    REJECT_INSUFFICIENTFEE, "insufficient fee");
+                return state.DoS(0, error("%s : not enough fees %s, %d < %d",
+                        __func__, hash.ToString(), nFees, txMinFee), REJECT_INSUFFICIENTFEE, "insufficient fee");
 
             // Continuously rate-limit free (really, very-low-fee) transactions
             // This mitigates 'penny-flooding' -- sending thousands of free transactions just to
@@ -1711,8 +1710,8 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState& state, const CTransa
                 // -limitfreerelay unit is thousand-bytes-per-minute
                 // At default rate it would take over a month to fill 1GB
                 if (dFreeCount >= GetArg("-limitfreerelay", 30) * 10 * 1000)
-                    return state.DoS(0, error("AcceptToMemoryPool : free transaction rejected by rate limiter"),
-                        REJECT_INSUFFICIENTFEE, "rate limited free transaction");
+                    return state.DoS(0, error("%s : free transaction rejected by rate limiter",
+                            __func__), REJECT_INSUFFICIENTFEE, "rate limited free transaction");
                 LogPrint(BCLog::MEMPOOL, "Rate limit dFreeCount: %g => %g\n", dFreeCount, dFreeCount + nSize);
                 dFreeCount += nSize;
             }
@@ -1742,9 +1741,8 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState& state, const CTransa
         if (fCLTVIsActivated)
             flags |= SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY;
         if (!CheckInputs(tx, state, view, true, flags, true)) {
-            return error(
-                "AcceptToMemoryPool: BUG! PLEASE REPORT THIS! ConnectInputs failed against MANDATORY but not STANDARD flags %s",
-                hash.ToString());
+            return error("%s : BUG! PLEASE REPORT THIS! ConnectInputs failed against MANDATORY but not STANDARD flags %s",
+                    __func__, hash.ToString());
         }
         // Store transaction in memory
         pool.addUnchecked(hash, entry);
@@ -1805,8 +1803,8 @@ bool AcceptableInputs(CTxMemPool& pool, CValidationState& state, const CTransact
         if (mapLockedInputs.count(in.prevout)) {
             if (mapLockedInputs[in.prevout] != tx.GetHash()) {
                 return state.DoS(0,
-                    error("AcceptableInputs : conflicts with existing transaction lock: %s", reason),
-                    REJECT_INVALID, "tx-lock-conflict");
+                    error("%s : conflicts with existing transaction lock: %s",
+                            __func__, reason), REJECT_INVALID, "tx-lock-conflict");
             }
         }
     }
@@ -1851,8 +1849,8 @@ bool AcceptableInputs(CTxMemPool& pool, CValidationState& state, const CTransact
 
             // are the actual inputs available?
             if (!CheckHaveInputs(view, tx))
-                return state.Invalid(error("AcceptableInputs : inputs already spent"),
-                    REJECT_DUPLICATE, "bad-txns-inputs-spent");
+                return state.Invalid(error("%s : inputs already spent",
+                        __func__), REJECT_DUPLICATE, "bad-txns-inputs-spent");
 
             // Bring the best block into scope
             view.GetBestBlock();
@@ -1925,18 +1923,15 @@ bool AcceptableInputs(CTxMemPool& pool, CValidationState& state, const CTransact
         }
 
         if (fRejectInsaneFee && nFees > ::minRelayTxFee.GetFee(nSize) * 10000)
-            return error("AcceptableInputs: insane fees %s, %d > %d",
-                hash.ToString(),
-                nFees, ::minRelayTxFee.GetFee(nSize) * 10000);
+            return error("%s : insane fees %s, %d > %d",
+                    __func__, hash.ToString(), nFees, ::minRelayTxFee.GetFee(nSize) * 10000);
 
         // As zero fee transactions are not going to be accepted in the near future (4.0) and the code will be fully refactored soon.
         // This is just a quick inline towards that goal, the mempool by default will not accept them. Blocking
         // any subsequent network relay.
         if ((!Params().IsRegTestNet() && nFees == 0)) {
-            return error("%s: zero fees not accepted %s, %d > %d",
-                         __func__,
-                         hash.ToString(),
-                         nFees, ::minRelayTxFee.GetFee(nSize) * 10000);
+            return error("%s : zero fees not accepted %s, %d > %d",
+                    __func__, hash.ToString(), nFees, ::minRelayTxFee.GetFee(nSize) * 10000);
         }
 
         bool fCLTVIsActivated = chainActive.Tip()->nHeight >= Params().BIP65ActivationHeight();
@@ -1947,7 +1942,7 @@ bool AcceptableInputs(CTxMemPool& pool, CValidationState& state, const CTransact
         if (fCLTVIsActivated)
             flags |= SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY;
         if (!CheckInputs(tx, state, view, false, flags, true)) {
-            return error("AcceptableInputs: ConnectInputs failed %s", hash.ToString());
+            return error("%s : ConnectInputs failed %s", __func__, hash.ToString());
         }
 
         // Check again against just the consensus-critical mandatory script
