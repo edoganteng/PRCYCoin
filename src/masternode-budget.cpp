@@ -2005,7 +2005,7 @@ void CFinalizedBudget::SubmitVote()
     }
 
     if (!CMessageSigner::GetKeysFromSecret(strMasterNodePrivKey, keyMasternode, pubKeyMasternode)) {
-        LogPrint(BCLog::MNBUDGET,"CFinalizedBudget::SubmitVote - Error upon calling SetKey\n");
+        LogPrint(BCLog::MNBUDGET,"CFinalizedBudget::SubmitVote - Error upon calling GetKeysFromSecret\n");
         return;
     }
 
