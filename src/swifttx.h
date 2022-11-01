@@ -10,6 +10,7 @@
 #include "base58.h"
 #include "key.h"
 #include "main.h"
+#include "messagesigner.h"
 #include "net.h"
 #include "sync.h"
 #include "util.h"
@@ -70,6 +71,7 @@ private:
     std::vector<unsigned char> vchSig;
 
 public:
+    int nMessVersion;
     CTxIn vinMasternode;
     uint256 txHash;
     int nBlockHeight;
@@ -93,10 +95,20 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
     {
-        READWRITE(txHash);
-        READWRITE(vinMasternode);
-        READWRITE(vchSig);
-        READWRITE(nBlockHeight);
+        try
+        {
+            READWRITE(nMessVersion);
+            READWRITE(txHash);
+            READWRITE(vinMasternode);
+            READWRITE(vchSig);
+            READWRITE(nBlockHeight);
+        } catch (...) {
+            nMessVersion = MessageVersion::MESS_VER_STRMESS;
+            READWRITE(txHash);
+            READWRITE(vinMasternode);
+            READWRITE(vchSig);
+            READWRITE(nBlockHeight);
+        }
     }
 };
 
