@@ -171,7 +171,7 @@ bool CActiveMasternode::SendMasternodePing(std::string& errorMessage)
         return false;
     }
 
-    bool fNewSigs = true;
+    bool fNewSigs = false;
     {
         LOCK(cs_main);
         fNewSigs = chainActive.NewSigsActive();
@@ -256,7 +256,7 @@ bool CActiveMasternode::CreateBroadcast(CTxIn vin, CService service, CKey keyCol
     // wait for reindex and/or import to finish
     if (fImporting || fReindex) return false;
 
-    bool fNewSigs = true;
+    bool fNewSigs = false;
     {
         LOCK(cs_main);
         fNewSigs = chainActive.NewSigsActive();
