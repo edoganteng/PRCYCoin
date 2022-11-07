@@ -651,7 +651,6 @@ bool ReVerifyPoSBlock(CBlockIndex* pindex)
             LogPrintf("%s: Previous block not found, received block %s, previous %s, current tip %s\n", __func__, block.GetHash().GetHex(), block.hashPrevBlock.GetHex(), chainActive.Tip()->GetBlockHash().GetHex());
             return false;
         }
-        CAmount blockValue = GetBlockValue(mapBlockIndex[block.hashPrevBlock]->nHeight);
         const CTxOut& mnOut = coinstake.vout[numUTXO - 1];
         std::string mnsa(mnOut.masternodeStealthAddress.begin(), mnOut.masternodeStealthAddress.end());
         if (!VerifyDerivedAddress(mnOut, mnsa)) {
@@ -1868,7 +1867,6 @@ bool AcceptableInputs(CTxMemPool& pool, CValidationState& state, const CTransact
                     hash.ToString(), nSigOps, nMaxSigOps),
                 REJECT_NONSTANDARD, "bad-txns-too-many-sigops");
 
-        CAmount nValueOut = tx.GetValueOut();
         CAmount nFees = tx.nTxFee;
         double dPriority = GetPriority(tx, chainHeight);
 
@@ -3180,7 +3178,6 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         if (mapBlockIndex.count(block.hashPrevBlock) < 1) {
             return state.DoS(100, error("ConnectBlock() : Previous block not found, received block %s, previous %s, current tip %s", block.GetHash().GetHex(), block.hashPrevBlock.GetHex(), chainActive.Tip()->GetBlockHash().GetHex()));
         }
-        CAmount blockValue = GetBlockValue(mapBlockIndex[block.hashPrevBlock]->nHeight);
         const CTxOut& mnOut = coinstake.vout[numUTXO - 1];
         std::string mnsa(mnOut.masternodeStealthAddress.begin(), mnOut.masternodeStealthAddress.end());
         if (!VerifyDerivedAddress(mnOut, mnsa))
