@@ -2459,7 +2459,6 @@ bool CWallet::SelectCoins(bool needFee, CAmount& estimatedFee, int ringSize, int
 {
     // Note: this function should never be used for "always free" tx types like dstx
     std::vector<COutput> vCoins;
-    vCoins.clear();
     AvailableCoins(vCoins, true, coinControl, false, coin_type, useIX);
 
     // coin control -> return all selected outputs (we want all selected to go into the transaction for sure)
