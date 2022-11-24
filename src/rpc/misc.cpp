@@ -596,20 +596,19 @@ UniValue getstakingstatus(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
         throw std::runtime_error(
-            "getstakingstatus\n"
+                "getstakingstatus\n"
             "Returns an object containing various staking information.\n"
             "\nResult:\n"
             "{\n"
             "  \"staking_status\": true|false,      (boolean) if the wallet is staking or not\n"
             "  \"staking_enabled\": true|false,     (boolean) if staking is enabled/disabled in prcycoin.conf\n"
             "  \"haveconnections\": true|false,     (boolean) if network connections are present\n"
+            "  \"masternodes-synced\": true|false,  (boolean) if masternode data is synced\n"
             "  \"walletunlocked\": true|false,      (boolean) if the wallet is unlocked\n"
             "  \"stakeablecoins\": n                (numeric) number of stakeable UTXOs\n"
             "  \"stakingbalance\": d                (numeric) PRCY value of the stakeable coins (minus reserve balance, if any)\n"
             "  \"lastattempt_age\": n               (numeric) seconds since last stake attempt\n"
             "  \"lastattempt_depth\": n             (numeric) depth of the block on top of which the last stake attempt was made\n"
-            "  \"masternodes-synced\": true|false,  (boolean) if masternode data is synced\n"
-            "  \"staking mode\": enabled|disabled,  (string) if staking is enabled or disabled\n"
             "  \"stakeablecoins\": true|false,      (boolean) if the wallet has mintable balance (greater than reserve balance)\n"
             "  \"stakesplitthreshold\": d           (numeric) value of the current threshold for stake split\n"
             "  \"lastattempt_age\": xxx             (numeric) seconds since last stake attempt\n"
@@ -621,35 +620,31 @@ UniValue getstakingstatus(const UniValue& params, bool fHelp)
             "\nExamples:\n" +
             HelpExampleCli("getstakingstatus", "") + HelpExampleRpc("getstakingstatus", ""));
 
-#ifdef ENABLE_WALLET
-    LOCK2(cs_main, pwalletMain ? &pwalletMain->cs_wallet : NULL);
-#else
-    LOCK(cs_main);
-#endif
 
-
-    UniValue obj(UniValue::VOBJ);
-    obj.push_back(Pair("staking_status", pwalletMain->pStakerStatus->IsActive()));
-    obj.push_back(Pair("staking_enabled", GetBoolArg("-staking", true)));
-    obj.push_back(Pair("haveconnections", !vNodes.empty()));
-    if (pwalletMain) {
+    if (!pwalletMain)
+        throw JSONRPCError(RPC_IN_WARMUP, "Try again after active chain is loaded");
+    {
+        LOCK2(cs_main, &pwalletMain->cs_wallet);
+        UniValue obj(UniValue::VOBJ);
+        obj.push_back(Pair("staking_status", pwalletMain->pStakerStatus->IsActive()));
+        obj.push_back(Pair("staking_enabled", GetBoolArg("-staking", true)));
+        obj.push_back(Pair("haveconnections", !vNodes.empty()));
+        obj.push_back(Pair("masternodes-synced", masternodeSync.IsSynced()));
         obj.push_back(Pair("walletunlocked", !pwalletMain->IsLocked()));
         std::vector<COutput> vCoins;
         pwalletMain->StakeableCoins(&vCoins);
         obj.push_back(Pair("stakeablecoins", (int)vCoins.size()));
         obj.push_back(Pair("stakingbalance", ValueFromAmount(pwalletMain->GetSpendableBalance())));
-    }
-    obj.push_back(Pair("stakesplitthreshold", ValueFromAmount(pwalletMain->nStakeSplitThreshold)));
-    obj.push_back(Pair("masternodes-synced", masternodeSync.IsSynced()));
-    CStakerStatus* ss = pwalletMain->pStakerStatus;
-    if (ss) {
-        obj.push_back(Pair("lastattempt_age", (int)(GetTime() - ss->GetLastTime())));
-        obj.push_back(Pair("lastattempt_depth", (chainActive.Height() - ss->GetLastHeight())));
-        obj.push_back(Pair("lastattempt_hash", ss->GetLastHash().GetHex()));
-        obj.push_back(Pair("lastattempt_coins", ss->GetLastCoins()));
-        obj.push_back(Pair("lastattempt_tries", ss->GetLastTries()));
-    }
-    /*if (pwalletMain->IsLocked()) {
+        obj.push_back(Pair("stakesplitthreshold", ValueFromAmount(pwalletMain->nStakeSplitThreshold)));
+        CStakerStatus* ss = pwalletMain->pStakerStatus;
+        if (ss) {
+            obj.push_back(Pair("lastattempt_age", (int)(GetTime() - ss->GetLastTime())));
+            obj.push_back(Pair("lastattempt_depth", (chainActive.Height() - ss->GetLastHeight())));
+            obj.push_back(Pair("lastattempt_hash", ss->GetLastHash().GetHex()));
+            obj.push_back(Pair("lastattempt_coins", ss->GetLastCoins()));
+            obj.push_back(Pair("lastattempt_tries", ss->GetLastTries()));
+        }
+        /*if (pwalletMain->IsLocked()) {
         obj.push_back(Pair("staking mode", ("disabled")));
         obj.push_back(Pair("staking status", ("inactive (wallet locked)")));
     } else {
@@ -666,6 +661,7 @@ UniValue getstakingstatus(const UniValue& params, bool fHelp)
             obj.push_back(Pair("staking status", (nStaking ? "active (attempting to mint a block)" : "idle (waiting for next round)")));
         }
     }*/
-    return obj;
+        return obj;
+    }
 }
 #endif // ENABLE_WALLET
