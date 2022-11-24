@@ -2079,7 +2079,7 @@ static CAmount ApproximateBestSubset(int numOut, int ringSize, std::vector<std::
     return nFeeNeeded;
 }
 
-bool CWallet::MintableCoins(std::vector<COutput>* pCoins)
+bool CWallet::StakeableCoins(std::vector<COutput>* pCoins)
 {
     CAmount nBalance = GetBalance();
 
@@ -2088,7 +2088,7 @@ bool CWallet::MintableCoins(std::vector<COutput>* pCoins)
         return error("%s : invalid reserve balance amount", __func__);
     if (nBalance <= nReserveBalance) return false;
 
-    if (!AvailableCoins(pCoins, true, nullptr, false, STAKABLE_COINS))
+    if (!AvailableCoins(pCoins, true, nullptr, false, STAKEABLE_COINS))
         return false;
 
     if (!pCoins || nReserveBalance == 0)
@@ -3685,7 +3685,7 @@ bool CWallet::CreateCoinStake(
 {
     // Get the list of stakable utxos
     std::vector<COutput> vCoins;
-    if (!MintableCoins(&vCoins)) {
+    if (!StakeableCoins(&vCoins)) {
         LogPrintf("%s: No coin available to stake.\n", __func__);
         return false;
     }

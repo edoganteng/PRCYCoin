@@ -722,7 +722,7 @@ bool WalletModel::isMine(CBitcoinAddress address)
 StakingStatusError WalletModel::getStakingStatusError(QString& error)
 {
     /* {
-        bool fMintable = wallet->MintableCoins();
+        bool fMintable = wallet->StakeableCoins();
         CAmount balance = wallet->GetSpendableBalance();
         const CAmount minStakingAmount = Params().MinimumStakeAmount();
         if (!fMintable || nReserveBalance > balance) {
@@ -738,7 +738,7 @@ StakingStatusError WalletModel::getStakingStatusError(QString& error)
                 if (balance > minStakingAmount) {
                     //1 is to cover transaction fees
                     if (balance >= minStakingAmount + 1*COIN) {
-                        error = "Not enough mintable coins.\nDo you want to merge & make a sent-to-yourself transaction to make the wallet stakable?";
+                        error = "Not enough stakeable coins.\nDo you want to merge & make a sent-to-yourself transaction to make the wallet stakable?";
                         return StakingStatusError::UTXO_UNDER_THRESHOLD;
                     }
                 }
