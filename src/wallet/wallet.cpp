@@ -862,7 +862,7 @@ bool CWallet::GetMasternodeVinAndKeys(CTxIn& txinRet, CPubKey& pubKeyRet, CKey& 
 
     // Find possible candidates
     std::vector<COutput> vPossibleCoins;
-    AvailableCoins(vPossibleCoins, true, NULL, false, ONLY_5000);
+    AvailableCoins(&vPossibleCoins, true, NULL, false, ONLY_5000);
     if (vPossibleCoins.empty()) {
         LogPrintf("CWallet::GetMasternodeVinAndKeys -- Could not locate any valid masternode vin\n");
         return false;
@@ -1937,98 +1937,85 @@ CAmount CWallet::GetImmatureWatchOnlyBalance() const
 /**
  * populate vCoins with vector of available COutputs.
  */
-void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed, const CCoinControl* coinControl, bool fIncludeZeroValue, AvailableCoinsType nCoinType, bool fUseIX, bool fJustOne)
+bool CWallet::AvailableCoins(
+        std::vector<COutput>* pCoins,
+        bool fOnlyConfirmed,
+        const CCoinControl* coinControl,
+        bool fIncludeZeroValue,
+        AvailableCoinsType nCoinType,
+        bool fUseIX
+        )
 {
-    if (IsLocked()) return;
-    vCoins.clear();
-
+    if (IsLocked()) return false;
+    if (pCoins) pCoins->clear();
+    const bool fCoinsSelected = (coinControl != nullptr) && coinControl->HasSelected();
     {
         LOCK2(cs_main, cs_wallet);
         for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
             const uint256& wtxid = it->first;
             const CWalletTx* pcoin = &(*it).second;
 
-            AvailableCoins(wtxid, pcoin, vCoins, fOnlyConfirmed, coinControl, fIncludeZeroValue, nCoinType, fUseIX);
-        }
-    }
-}
+            if (!CheckFinalTx(*pcoin)) continue;
+            if (fOnlyConfirmed && !pcoin->IsTrusted()) continue;
+            if (pcoin->GetBlocksToMaturity() > 0) continue;
 
-bool CWallet::AvailableCoins(
-        const uint256 wtxid,
-        const CWalletTx* pcoin,
-        std::vector<COutput>& vCoins,
-        bool fOnlyConfirmed,
-        const CCoinControl* coinControl,
-        bool fIncludeZeroValue,
-        AvailableCoinsType nCoinType,
-        bool fUseIX,
-        bool fJustOne
-        )
-{
-    if (IsLocked()) return false;
-    const bool fCoinsSelected = (coinControl != nullptr) && coinControl->HasSelected();
-    {
-        if (!CheckFinalTx(*pcoin)) return false;
-        if (fOnlyConfirmed && !pcoin->IsTrusted()) return false;
-        if (pcoin->GetBlocksToMaturity() > 0) return false;
+            int nDepth = pcoin->GetDepthInMainChain(false);
+            // do not use IX for inputs that have less then 6 blockchain confirmations
+            if (fUseIX && nDepth < 6) return false;
 
-        int nDepth = pcoin->GetDepthInMainChain(false);
-        // do not use IX for inputs that have less then 6 blockchain confirmations
-        if (fUseIX && nDepth < 6) return false;
+            // We should not consider coins which aren't at least in our mempool
+            // It's possible for these to be conflicted via ancestors which we may never be able to detect
+            if (nDepth <= 0 && !pcoin->InMempool()) continue;
 
-        // We should not consider coins which aren't at least in our mempool
-        // It's possible for these to be conflicted via ancestors which we may never be able to detect
-        if (nDepth <= 0 && !pcoin->InMempool()) return false;
+            // Check min depth requirement for stake inputs
+            if (nCoinType == STAKEABLE_COINS && nDepth <= Params().COINSTAKE_MIN_DEPTH()) continue;
 
-        // Check min depth requirement for stake inputs
-        if (nCoinType == STAKABLE_COINS && nDepth <= Params().COINSTAKE_MIN_DEPTH()) return false;
-
-        for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
-            if (pcoin->vout[i].IsEmpty()) {
-                continue;
-            }
-            bool found = false;
-            CAmount value = getCTxOutValue(*pcoin, pcoin->vout[i]);
-            if (nCoinType == ONLY_5000) {
-                found = value == Params().MNCollateralAmt();
-            } else {
-                COutPoint outpoint(pcoin->GetHash(), i);
-                if (IsCollateralized(outpoint)) {
+            for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
+                if (pcoin->vout[i].IsEmpty()) {
                     continue;
                 }
-                found = true;
+                bool found = false;
+                CAmount value = getCTxOutValue(*pcoin, pcoin->vout[i]);
+                if (nCoinType == ONLY_5000) {
+                    found = value == Params().MNCollateralAmt();
+                } else {
+                    COutPoint outpoint(pcoin->GetHash(), i);
+                    if (IsCollateralized(outpoint)) {
+                        continue;
+                    }
+                    found = true;
+                }
+                if (!found) continue;
+
+                // Check for minimum stake amount
+                if (nCoinType == STAKEABLE_COINS && value < Params().MinimumStakeAmount()) continue;
+                if (IsSpent(wtxid, i)) continue;
+
+                isminetype mine = IsMine(pcoin->vout[i]);
+                if (  (mine == ISMINE_NO) ||
+                      (mine == ISMINE_WATCH_ONLY) ||
+                      (IsLockedCoin(wtxid, i) && nCoinType != ONLY_5000) ||
+                      (value <= 0 && !fIncludeZeroValue) ||
+                      (fCoinsSelected && !coinControl->fAllowOtherInputs && !coinControl->IsSelected(wtxid, i))
+                      ) continue;
+
+                bool fIsSpendable = false;
+                if ((mine & ISMINE_SPENDABLE) != ISMINE_NO)
+                    fIsSpendable = true;
+
+                // found valid coin
+                if (!pCoins) return true;
+                pCoins->emplace_back(COutput(pcoin, i, nDepth, fIsSpendable));
             }
-            if (!found) continue;
-
-            // Check for minimum stake amount
-            if (nCoinType == STAKABLE_COINS && value < Params().MinimumStakeAmount()) continue;
-
-            isminetype mine = IsMine(pcoin->vout[i]);
-            if (  (mine == ISMINE_NO) ||
-                  (mine == ISMINE_WATCH_ONLY) ||
-                  (IsLockedCoin(wtxid, i) && nCoinType != ONLY_5000) ||
-                  (value <= 0 && !fIncludeZeroValue) ||
-                  (fCoinsSelected && !coinControl->fAllowOtherInputs && !coinControl->IsSelected(wtxid, i))
-                ) continue;
-
-            bool fIsSpendable = false;
-            if ((mine & ISMINE_SPENDABLE) != ISMINE_NO)
-                fIsSpendable = true;
-
-            if (IsSpent(wtxid, i)) continue;
-
-            // found valid coin
-            vCoins.emplace_back(COutput(pcoin, i, nDepth, fIsSpendable));
-            if (fJustOne) return;
         }
+        return (pCoins && pCoins->size() > 0);
     }
-    return true;
 }
 
 std::map<CBitcoinAddress, std::vector<COutput> > CWallet::AvailableCoinsByAddress(bool fConfirmed, CAmount maxCoinValue)
 {
     std::vector<COutput> vCoins;
-    AvailableCoins(vCoins, fConfirmed);
+    AvailableCoins(&vCoins, fConfirmed);
 
     std::map<CBitcoinAddress, std::vector<COutput> > mapCoins;
     for (COutput out : vCoins) {
@@ -2092,48 +2079,7 @@ static CAmount ApproximateBestSubset(int numOut, int ringSize, std::vector<std::
     return nFeeNeeded;
 }
 
-bool CWallet::SelectStakeCoins(std::list<std::unique_ptr<CStakeInput> >& listInputs, CAmount nTargetAmount, int blockHeight)
-{
-    std::vector<COutput> vCoins;
-    AvailableCoins(vCoins, true, NULL, false, STAKABLE_COINS);
-    CAmount nAmountSelected = 0;
-    if (GetBoolArg("-prcystake", true)) {
-        for (const COutput &out : vCoins) {
-            //make sure not to outrun target amount
-            CAmount value = getCOutPutValue(out);
-            if (nAmountSelected + value > nTargetAmount)
-                continue;
-
-            //check that it is above Minimum Stake Amount
-            if (value < Params().MinimumStakeAmount())
-                continue;
-
-            //check that it is not MN Collateral
-            if (value == Params().MNCollateralAmt()) {
-                COutPoint outpoint(out.tx->GetHash(), out.i);
-                if (IsCollateralized(outpoint)) {
-                    LogPrint(BCLog::STAKING, "%s: Skipping MN collateralized output\n", __func__);
-                    continue;
-                }
-            }
-
-            CBlockIndex* utxoBlock = mapBlockIndex.at(out.tx->hashBlock);
-            //check for maturity (min age/depth)
-            if (!Params().HasStakeMinAgeOrDepth(blockHeight, GetAdjustedTime(), utxoBlock->nHeight, utxoBlock->GetBlockTime()))
-                continue;
-
-            //add to our stake set
-            nAmountSelected += value;
-
-            std::unique_ptr<CPrcyStake> input(new CPrcyStake());
-            input->SetInput((CTransaction) *out.tx, out.i);
-            listInputs.emplace_back(std::move(input));
-        }
-    }
-    return true;
-}
-
-bool CWallet::MintableCoins()
+bool CWallet::MintableCoins(std::vector<COutput>* pCoins)
 {
     CAmount nBalance = GetBalance();
 
@@ -2142,18 +2088,23 @@ bool CWallet::MintableCoins()
         return error("%s : invalid reserve balance amount", __func__);
     if (nBalance <= nReserveBalance) return false;
 
-    std::vector<COutput> vCoins;
-    AvailableCoins(vCoins,
-            true,           // fOnlyConfirmed
-            nullptr,        // coinControl
-            false,          // fIncludeZeroValue
-            STAKABLE_COINS, // nCoinType
-            false,          // fUseIX
-            true            // fJustOne
-            );
+    if (!AvailableCoins(pCoins, true, nullptr, false, STAKABLE_COINS))
+        return false;
 
-    // check that we have at least one utxo eligible for staking.
-    return (vCoins.size() > 0);
+    if (!pCoins || nReserveBalance == 0)
+        // there is at least one stakeable utxo
+        return true;
+
+    CAmount nTargetAmount = nBalance - nReserveBalance;
+    CAmount nAmountSelected = 0;
+    // leave some utxo for reserve balance
+    for (const COutput &out : *pCoins) {
+        const CAmount& nAmountUtxo = getCOutPutValue(out);
+        if (nAmountSelected + nAmountUtxo > nTargetAmount) continue;
+        nAmountSelected += out.tx->vout[out.i].nValue;
+    }
+
+    return (pCoins->size() > 0);
 }
 
 StakingStatusError CWallet::StakingCoinStatus(CAmount& minFee, CAmount& maxFee)
@@ -2473,7 +2424,7 @@ bool CWallet::SelectCoins(bool needFee, CAmount& estimatedFee, int ringSize, int
     std::vector<COutput> vCoins;
     vCoins.clear();
 
-    AvailableCoins(vCoins, true, coinControl, false, coin_type, useIX);
+    AvailableCoins(&vCoins, true, coinControl, false, coin_type, useIX);
 
     // coin control -> return all selected outputs (we want all selected to go into the transaction for sure)
     if (coinControl && coinControl->HasSelected()) {
@@ -3732,51 +3683,35 @@ bool CWallet::CreateCoinStake(
         int64_t& nTxNewTime
         )
 {
-    int static wlIdx = 0;
-    txNew.vin.clear();
-    txNew.vout.clear();
+    // Get the list of stakable utxos
+    std::vector<COutput> vCoins;
+    if (!MintableCoins(&vCoins)) {
+        LogPrintf("%s: No coin available to stake.\n", __func__);
+        return false;
+    }
+
+    // Parse utxos into CPrcyStakes
+    std::list<std::unique_ptr<CStakeInput> > listInputs;
+    for (const COutput &out : vCoins) {
+        std::unique_ptr<CPrcyStake> input(new CPrcyStake());
+        input->SetInput((CTransaction) *out.tx, out.i);
+        listInputs.emplace_back(std::move(input));
+    }
 
     // Mark coin stake transaction
-    CScript scriptEmpty;
-    scriptEmpty.clear();
-    txNew.vout.push_back(CTxOut(0, scriptEmpty));
+    txNew.vin.clear();
+    txNew.vout.clear();
+    txNew.vout.push_back(CTxOut(0, CScript()));
     txNew.txType = TX_TYPE_REVEAL_BOTH;
 
-    // Choose coins to use
-    CAmount nBalance = GetSpendableBalance();
+    // update staker status (hash)
+    pStakerStatus->SetLastTip(pindexPrev);
 
-    if (mapArgs.count("-reservebalance") && !ParseMoney(mapArgs["-reservebalance"], nReserveBalance))
-        return error("CreateCoinStake : invalid reserve balance amount");
-
-    if (nBalance > 0 && nBalance <= nReserveBalance)
-        return false;
-
-    // Get the list of stakable inputs
-    std::list<std::unique_ptr<CStakeInput> > listInputs;
-    if (!SelectStakeCoins(listInputs, nBalance - nReserveBalance, pindexPrev->nHeight + 1)) {
-        LogPrintf("CreateCoinStake(): selectStakeCoins failed\n");
-        return false;
-    }
-
-    if (listInputs.empty()) {
-        LogPrint(BCLog::STAKING, "CreateCoinStake(): listInputs empty\n");
-        MilliSleep(50000);
-        return false;
-    }
-
-    if (GetAdjustedTime() - pindexPrev->GetBlockTime() < 60) {
-        if (Params().IsRegTestNet()) {
-            MilliSleep(1000);
-        }
-    }
-
+    // Kernel Search
     CAmount nCredit;
     CScript scriptPubKeyKernel;
     bool fKernelFound = false;
     int nAttempts = 0;
-
-    // update staker status (hash)
-    pStakerStatus->SetLastTip(pindexPrev);
 
     for (std::unique_ptr<CStakeInput>& stakeInput : listInputs) {
         //new block came in, move on
@@ -5255,7 +5190,7 @@ bool CWallet::MultiSend()
     }
 
     std::vector<COutput> vCoins;
-    AvailableCoins(vCoins);
+    AvailableCoins(&vCoins);
 
     bool stakeSent = false;
     bool mnSent = false;
