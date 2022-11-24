@@ -709,11 +709,11 @@ void BitcoinMiner(CWallet* pwallet, bool fProofOfStake)
         }
         if (pindexPrev->nHeight < Params().LAST_POW_BLOCK()) fProofOfStake = true;
         if (fProofOfStake) {
-            //control the amount of times the client will check for mintable coins
+            //control the amount of times the client will check for stakeable coins
             if ((GetTime() - nMintableLastCheck > 5 * 60)) // 5 minute check time
             {
                 nMintableLastCheck = GetTime();
-                fMintableCoins = pwallet->MintableCoins();
+                fMintableCoins = pwallet->StakeableCoins();
             }
 
             if (chainActive.Tip()->nHeight < Params().LAST_POW_BLOCK()) {
@@ -727,7 +727,7 @@ void BitcoinMiner(CWallet* pwallet, bool fProofOfStake)
                     if (GetTime() - nMintableLastCheck > 1 * 60) // 1 minute check time
                     {
                         nMintableLastCheck = GetTime();
-                        fMintableCoins = pwallet->MintableCoins();
+                        fMintableCoins = pwallet->StakeableCoins();
                     }
                 }
                 MilliSleep(5000);

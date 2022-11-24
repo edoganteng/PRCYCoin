@@ -91,8 +91,8 @@ enum WalletFeature {
 
 enum AvailableCoinsType {
     ALL_COINS = 1,
-    ONLY_5000 = 5,                        // find masternode outputs including locked ones (use with caution)
-    STAKABLE_COINS = 6                          // UTXO's that are valid for staking
+    ONLY_5000 = 5,                               // find masternode outputs including locked ones (use with caution)
+    STAKEABLE_COINS = 6                          // UTXO's that are valid for staking
 };
 
 struct CompactTallyItem {
@@ -278,7 +278,7 @@ public:
     static const int32_t MAX_DECOY_POOL = 500;
     static const int32_t PROBABILITY_NEW_COIN_SELECTED = 70;
     bool RescanAfterUnlock(int fromHeight);
-    bool MintableCoins(std::vector<COutput>* pCoins = nullptr);
+    bool StakeableCoins(std::vector<COutput>* pCoins = nullptr);
     StakingStatusError StakingCoinStatus(CAmount& minFee, CAmount& maxFee);
     bool IsMasternodeController();
     bool checkPassPhraseRule(const char *pass);

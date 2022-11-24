@@ -116,10 +116,10 @@ UniValue getinfo(const UniValue &params, bool fHelp) {
             obj.push_back(Pair("staking status", ("inactive (no peer connections)")));
         } else if (!masternodeSync.IsSynced()) {
             obj.push_back(Pair("staking status", ("inactive (syncing masternode list)")));
-        } else if (!pwalletMain->MintableCoins() && pwalletMain->combineMode == CombineMode::ON) {
+        } else if (!pwalletMain->StakeableCoins() && pwalletMain->combineMode == CombineMode::ON) {
             obj.push_back(Pair("staking status", ("delayed (waiting for 100 blocks)")));
-        } else if (!pwalletMain->MintableCoins()) {
-            obj.push_back(Pair("staking status", ("inactive (no mintable coins)")));
+        } else if (!pwalletMain->StakeableCoins()) {
+            obj.push_back(Pair("staking status", ("inactive (no stakeable coins)")));
         } else {
             obj.push_back(Pair("staking status", (nStaking ? "active (attempting to mint a block)" : "idle (waiting for next round)")));
         }
@@ -605,7 +605,7 @@ UniValue getstakingstatus(const UniValue& params, bool fHelp)
             "  \"tiptime\": n,                      (integer) chain tip blocktime\n"
             "  \"haveconnections\": true|false,     (boolean) if network connections are present\n"
             "  \"walletunlocked\": true|false,      (boolean) if the wallet is unlocked\n"
-            "  \"mintablecoins\": true|false,       (boolean) if the wallet has mintable balance (greater than reserve balance)\n"
+            "  \"stakeablecoins\": true|false,       (boolean) if the wallet has mintable balance (greater than reserve balance)\n"
             "  \"masternodes-synced\": true|false,  (boolean) if masternode data is synced\n"
             "  \"staking mode\": enabled|disabled,  (string) if staking is enabled or disabled\n"
             "  \"hashLastStakeAttempt\": xxx        (hex string) hash of last block on top of which the miner attempted to stake\n"
@@ -629,7 +629,7 @@ UniValue getstakingstatus(const UniValue& params, bool fHelp)
     obj.push_back(Pair("haveconnections", !vNodes.empty()));
     if (pwalletMain) {
         obj.push_back(Pair("walletunlocked", !pwalletMain->IsLocked()));
-        obj.push_back(Pair("mintablecoins", pwalletMain->MintableCoins()));
+        obj.push_back(Pair("stakeablecoins", pwalletMain->StakeableCoins()));
     }
     obj.push_back(Pair("masternodes-synced", masternodeSync.IsSynced()));
     uint256 lastHash = pwalletMain->pStakerStatus->GetLastHash();
@@ -646,10 +646,10 @@ UniValue getstakingstatus(const UniValue& params, bool fHelp)
             obj.push_back(Pair("staking status", ("inactive (no peer connections)")));
         } else if (!masternodeSync.IsSynced()) {
             obj.push_back(Pair("staking status", ("inactive (syncing masternode list)")));
-        } else if (!pwalletMain->MintableCoins() && pwalletMain->combineMode == CombineMode::ON) {
+        } else if (!pwalletMain->StakeableCoins() && pwalletMain->combineMode == CombineMode::ON) {
             obj.push_back(Pair("staking status", ("delayed (waiting for 100 blocks)")));
-        } else if (!pwalletMain->MintableCoins()) {
-            obj.push_back(Pair("staking status", ("inactive (no mintable coins)")));
+        } else if (!pwalletMain->StakeableCoins()) {
+            obj.push_back(Pair("staking status", ("inactive (no stakeable coins)")));
         } else {
             obj.push_back(Pair("staking status", (nStaking ? "active (attempting to mint a block)" : "idle (waiting for next round)")));
         }
