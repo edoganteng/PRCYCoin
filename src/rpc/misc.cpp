@@ -604,7 +604,10 @@ UniValue getstakingstatus(const UniValue& params, bool fHelp)
             "  \"staking_enabled\": true|false,     (boolean) if staking is enabled/disabled in prcycoin.conf\n"
             "  \"haveconnections\": true|false,     (boolean) if network connections are present\n"
             "  \"walletunlocked\": true|false,      (boolean) if the wallet is unlocked\n"
-            "  \"stakeablecoins\": true|false,      (boolean) if the wallet has mintable balance (greater than reserve balance)\n"
+            "  \"stakeablecoins\": n                (numeric) number of stakeable UTXOs\n"
+            "  \"stakingbalance\": d                (numeric) PRCY value of the stakeable coins (minus reserve balance, if any)\n"
+            "  \"lastattempt_age\": n               (numeric) seconds since last stake attempt\n"
+            "  \"lastattempt_depth\": n             (numeric) depth of the block on top of which the last stake attempt was made\n"
             "  \"masternodes-synced\": true|false,  (boolean) if masternode data is synced\n"
             "  \"staking mode\": enabled|disabled,  (string) if staking is enabled or disabled\n"
             "  \"stakeablecoins\": true|false,      (boolean) if the wallet has mintable balance (greater than reserve balance)\n"
@@ -630,7 +633,10 @@ UniValue getstakingstatus(const UniValue& params, bool fHelp)
     obj.push_back(Pair("haveconnections", !vNodes.empty()));
     if (pwalletMain) {
         obj.push_back(Pair("walletunlocked", !pwalletMain->IsLocked()));
-        obj.push_back(Pair("stakeablecoins", pwalletMain->StakeableCoins()));
+        std::vector<COutput> vCoins;
+        pwalletMain->StakeableCoins(&vCoins);
+        obj.push_back(Pair("stakeablecoins", (int)vCoins.size()));
+        obj.push_back(Pair("stakingbalance", ValueFromAmount(pwalletMain->GetSpendableBalance())));
     }
     obj.push_back(Pair("masternodes-synced", masternodeSync.IsSynced()));
     CStakerStatus* ss = pwalletMain->pStakerStatus;
