@@ -2138,8 +2138,6 @@ bool CWallet::MintableCoins()
 {
     CAmount nBalance = GetBalance();
 
-    int chainHeight = chainActive.Height();
-
     // Regular PRCY
     if (nBalance > 0) {
         if (mapArgs.count("-reservebalance") && !ParseMoney(mapArgs["-reservebalance"], nReserveBalance))
@@ -2148,30 +2146,20 @@ bool CWallet::MintableCoins()
             return false;
 
         std::vector<COutput> vCoins;
-        AvailableCoins(vCoins, true);
+        AvailableCoins(vCoins, true, NULL, false, STAKABLE_COINS, false);
 
-        int64_t time = GetAdjustedTime();
-        for (const COutput& out : vCoins) {
-            //add in-wallet minimum staking
-            CAmount nVal = getCOutPutValue(out);
+        if (vCoins.size() > 0) {
+            // check that we have at least one utxo eligible for staking (min age/depth/above Minimum Stake Amount)
+            const int64_t time = GetAdjustedTime();
+            const int chainHeight = chainActive.Height();
+            for (const COutput& out : vCoins) {
+                //add in-wallet minimum staking
+                CAmount nVal = getCOutPutValue(out);
 
-            //check that it is above Minimum Stake Amount
-            if (nVal >= Params().MinimumStakeAmount())
-                return true;
-
-            //check that it is not MN Collateral
-            if (nVal == Params().MNCollateralAmt()) {
-                COutPoint outpoint(out.tx->GetHash(), out.i);
-                if (!IsCollateralized(outpoint)) {
-                    LogPrint(BCLog::STAKING, "%s: Skipping MN collateralized output\n", __func__);
+                CBlockIndex* utxoBlock = mapBlockIndex.at(out.tx->hashBlock);
+                if (Params().HasStakeMinAgeOrDepth(chainHeight, time, utxoBlock->nHeight, utxoBlock->nTime) && nVal >= Params().MinimumStakeAmount())
                     return true;
-                }
             }
-
-            CBlockIndex* utxoBlock = mapBlockIndex.at(out.tx->hashBlock);
-            //check for maturity (min age/depth)
-            if (Params().HasStakeMinAgeOrDepth(chainHeight, time, utxoBlock->nHeight, utxoBlock->nTime))
-                return true;
         }
     }
 
