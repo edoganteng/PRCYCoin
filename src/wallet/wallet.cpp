@@ -1937,7 +1937,7 @@ CAmount CWallet::GetImmatureWatchOnlyBalance() const
 /**
  * populate vCoins with vector of available COutputs.
  */
-void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed, const CCoinControl* coinControl, bool fIncludeZeroValue, AvailableCoinsType nCoinType, bool fUseIX)
+void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed, const CCoinControl* coinControl, bool fIncludeZeroValue, AvailableCoinsType nCoinType, bool fUseIX, bool fJustOne)
 {
     if (IsLocked()) return;
     vCoins.clear();
@@ -1961,7 +1961,8 @@ bool CWallet::AvailableCoins(
         const CCoinControl* coinControl,
         bool fIncludeZeroValue,
         AvailableCoinsType nCoinType,
-        bool fUseIX
+        bool fUseIX,
+        bool fJustOne
         )
 {
     if (IsLocked()) return false;
@@ -2016,7 +2017,9 @@ bool CWallet::AvailableCoins(
 
             if (IsSpent(wtxid, i)) continue;
 
+            // found valid coin
             vCoins.emplace_back(COutput(pcoin, i, nDepth, fIsSpendable));
+            if (fJustOne) return;
         }
     }
     return true;
@@ -2134,21 +2137,23 @@ bool CWallet::MintableCoins()
 {
     CAmount nBalance = GetBalance();
 
-    // Regular PRCY
-    if (nBalance > 0) {
-        if (mapArgs.count("-reservebalance") && !ParseMoney(mapArgs["-reservebalance"], nReserveBalance))
-            return error("%s : invalid reserve balance amount", __func__);
-        if (nBalance <= nReserveBalance)
-            return false;
+    if (nBalance == 0) return false;
+    if (mapArgs.count("-reservebalance") && !ParseMoney(mapArgs["-reservebalance"], nReserveBalance))
+        return error("%s : invalid reserve balance amount", __func__);
+    if (nBalance <= nReserveBalance) return false;
 
-        std::vector<COutput> vCoins;
-        AvailableCoins(vCoins, true, NULL, false, STAKABLE_COINS, false);
+    std::vector<COutput> vCoins;
+    AvailableCoins(vCoins,
+            true,           // fOnlyConfirmed
+            nullptr,        // coinControl
+            false,          // fIncludeZeroValue
+            STAKABLE_COINS, // nCoinType
+            false,          // fUseIX
+            true            // fJustOne
+            );
 
-        // check that we have at least one utxo eligible for staking.
-        return (vCoins.size() > 0);
-    }
-
-    return false;
+    // check that we have at least one utxo eligible for staking.
+    return (vCoins.size() > 0);
 }
 
 StakingStatusError CWallet::StakingCoinStatus(CAmount& minFee, CAmount& maxFee)
