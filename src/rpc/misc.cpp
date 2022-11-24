@@ -605,8 +605,7 @@ UniValue getstakingstatus(const UniValue& params, bool fHelp)
             "  \"tiptime\": n,                      (integer) chain tip blocktime\n"
             "  \"haveconnections\": true|false,     (boolean) if network connections are present\n"
             "  \"walletunlocked\": true|false,      (boolean) if the wallet is unlocked\n"
-            "  \"mintablecoins\": true|false,       (boolean) if the wallet has mintable coins\n"
-            "  \"enoughcoins\": true|false,         (boolean) if available coins are greater than reserve balance\n"
+            "  \"mintablecoins\": true|false,       (boolean) if the wallet has mintable balance (greater than reserve balance)\n"
             "  \"masternodes-synced\": true|false,  (boolean) if masternode data is synced\n"
             "  \"staking mode\": enabled|disabled,  (string) if staking is enabled or disabled\n"
             "  \"hashLastStakeAttempt\": xxx        (hex string) hash of last block on top of which the miner attempted to stake\n"
@@ -631,7 +630,6 @@ UniValue getstakingstatus(const UniValue& params, bool fHelp)
     if (pwalletMain) {
         obj.push_back(Pair("walletunlocked", !pwalletMain->IsLocked()));
         obj.push_back(Pair("mintablecoins", pwalletMain->MintableCoins()));
-        obj.push_back(Pair("enoughcoins", nReserveBalance <= pwalletMain->GetBalance()));
     }
     obj.push_back(Pair("masternodes-synced", masternodeSync.IsSynced()));
     uint256 lastHash = pwalletMain->pStakerStatus->GetLastHash();
