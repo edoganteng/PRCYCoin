@@ -435,7 +435,7 @@ UniValue listunspent(const UniValue& params, bool fHelp)
     std::vector<COutput> vecOutputs;
     assert(pwalletMain != NULL);
     LOCK2(cs_main, pwalletMain->cs_wallet);
-    pwalletMain->AvailableCoins(vecOutputs, false);
+    pwalletMain->AvailableCoins(&vecOutputs, false);
     for (const COutput& out : vecOutputs) {
         if (out.nDepth < nMinDepth || out.nDepth > nMaxDepth)
             continue;
@@ -533,7 +533,7 @@ UniValue getunspentcount(const UniValue& params, bool fHelp)
     std::vector<COutput> vecOutputs;
     assert(pwalletMain != NULL);
     LOCK2(cs_main, pwalletMain->cs_wallet);
-    pwalletMain->AvailableCoins(vecOutputs, false);
+    pwalletMain->AvailableCoins(&vecOutputs, false);
     for (const COutput& out : vecOutputs) {
         if (out.nDepth < nMinDepth || out.nDepth > nMaxDepth)
             continue;
