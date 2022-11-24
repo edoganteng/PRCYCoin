@@ -611,6 +611,7 @@ UniValue getstakingstatus(const UniValue& params, bool fHelp)
             "  \"masternodes-synced\": true|false,  (boolean) if masternode data is synced\n"
             "  \"staking mode\": enabled|disabled,  (string) if staking is enabled or disabled\n"
             "  \"stakeablecoins\": true|false,      (boolean) if the wallet has mintable balance (greater than reserve balance)\n"
+            "  \"stakesplitthreshold\": d           (numeric) value of the current threshold for stake split\n"
             "  \"lastattempt_age\": xxx             (numeric) seconds since last stake attempt\n"
             "  \"lastattempt_depth\": xxx           (numeric) depth of the block on top of which the last stake attempt was made\n"
             "  \"lastattempt_hash\": xxx            (hex string) hash of the block on top of which the last stake attempt was made\n"
@@ -638,6 +639,7 @@ UniValue getstakingstatus(const UniValue& params, bool fHelp)
         obj.push_back(Pair("stakeablecoins", (int)vCoins.size()));
         obj.push_back(Pair("stakingbalance", ValueFromAmount(pwalletMain->GetSpendableBalance())));
     }
+    obj.push_back(Pair("stakesplitthreshold", ValueFromAmount(pwalletMain->nStakeSplitThreshold)));
     obj.push_back(Pair("masternodes-synced", masternodeSync.IsSynced()));
     CStakerStatus* ss = pwalletMain->pStakerStatus;
     if (ss) {
