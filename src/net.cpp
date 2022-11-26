@@ -1293,7 +1293,7 @@ void ThreadMapPort()
             }
         }
 
-        std::string strDesc = "PRCY " + FormatFullVersion();
+        std::string strDesc = PACKAGE_NAME " " + FormatFullVersion();
 
         try {
             while (true) {
