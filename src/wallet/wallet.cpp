@@ -1983,6 +1983,9 @@ bool CWallet::AvailableCoins(
                     if (IsCollateralized(outpoint)) {
                         continue;
                     }
+                    if (inSpendQueueOutpoints.count(outpoint)) {
+                        continue;
+                    }
                     found = true;
                 }
                 if (!found) continue;
