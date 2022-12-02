@@ -47,6 +47,10 @@ CAmount CPrcyStake::GetValue(const unsigned char* encryptionKey)
         return txFrom.vout[nPosition].nValue;
     }
 
+    const CWalletTx* pWalletTx = pwalletMain->GetWalletTx(txFrom.GetHash());
+    if (pWalletTx) {
+        return pwalletMain->getCTxOutValue(*pWalletTx, pWalletTx->vout[nPosition]);
+    }
     CAmount nValueIn = 0;
     uint256 val = txFrom.vout[nPosition].maskValue.amount;
     uint256 mask = txFrom.vout[nPosition].maskValue.mask;
