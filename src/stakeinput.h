@@ -50,7 +50,7 @@ public:
 
     CBlockIndex* GetIndexFrom() override;
     bool GetTxFrom(CTransaction& tx) override;
-    CAmount GetValue(const unsigned char* encryptionKey) override;
+    CAmount GetValue(const unsigned char* encryptionKey = nullptr) override;
     bool GetModifier(uint64_t& nStakeModifier) override;
     CDataStream GetUniqueness() override;
     unsigned int GetPosition() override { return nPosition; };
