@@ -1929,7 +1929,9 @@ bool AppInit2(bool isDaemon)
     if (pwalletMain) {
         // Add wallet transactions that aren't already in a block to mapTransactions
         pwalletMain->ReacceptWalletTransactions();
+        pwalletMain->fAutoConsolidate = GetBoolArg("-autoconsolidate", false);
         pwalletMain->fCombineDust = GetBoolArg("-combinedust", true);
+
         // Run a thread to flush wallet periodically
         threadGroup.create_thread(boost::bind(&ThreadFlushWalletDB, boost::ref(pwalletMain->strWalletFile)));
 		
@@ -1938,6 +1940,11 @@ bool AppInit2(bool isDaemon)
         } else {
             LogPrintf("Autocombinedust is disabled\n");
         }
+        if (pwalletMain->fAutoConsolidate){
+            LogPrintf("Autoconsolidate is enabled\n");
+        } else {
+            LogPrintf("Autoconsolidate is disabled\n");
+        }
 		
         storedStakingStatus = pwalletMain->ReadStakingStatus();
         if (GetBoolArg("-staking", false) || storedStakingStatus) {
@@ -1945,15 +1952,6 @@ bool AppInit2(bool isDaemon)
             pwalletMain->WriteStakingStatus(true);
             LogPrintf("Starting staking\n");
             threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "stakemint", &ThreadStakeMinter));
-            // fAutoConsolidate should be OFF on first launch or keep previous setting when available
-            // This changes that setting only if staking is on
-            if (GetBoolArg("-autoconsolidate", false)){
-                pwalletMain->fAutoConsolidate = true;
-                LogPrintf("Autoconsolidate is enabled\n");
-            } else {
-                pwalletMain->fAutoConsolidate = false;
-                LogPrintf("Autoconsolidate is disabled\n");
-            }
         } else {
             LogPrintf("Staking is disabled\n");
         }
