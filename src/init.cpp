@@ -1945,13 +1945,13 @@ bool AppInit2(bool isDaemon)
             pwalletMain->WriteStakingStatus(true);
             LogPrintf("Starting staking\n");
             threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "stakemint", &ThreadStakeMinter));
-            // combineMode should be OFF on first launch or keep previous setting when available
+            // fAutoConsolidate should be OFF on first launch or keep previous setting when available
             // This changes that setting only if staking is on
             if (GetBoolArg("-autoconsolidate", false)){
-                LogPrintf("Autoconsolidate is enabled and we are setting CombineMode::ON now\n");
-                pwalletMain->combineMode = CombineMode::ON;
+                pwalletMain->fAutoConsolidate = true;
+                LogPrintf("Autoconsolidate is enabled\n");
             } else {
-                pwalletMain->combineMode = CombineMode::OFF;
+                pwalletMain->fAutoConsolidate = false;
                 LogPrintf("Autoconsolidate is disabled\n");
             }
         } else {

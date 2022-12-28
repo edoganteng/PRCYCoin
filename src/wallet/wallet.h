@@ -212,11 +212,6 @@ enum StakingStatusError
     STAKABLE_NEED_CONSOLIDATION_WITH_RESERVE_BALANCE  //stable and consolidation, needs to estimate fees
 };
 
-enum CombineMode {
-    OFF,
-    ON,
-};
-
 /**
  * A CWallet is an extension of a keystore, which also maintains a set of transactions and balances,
  * and provides the ability to create new transactions.
@@ -311,6 +306,7 @@ public:
     bool fCombineDust;
     CAmount nAutoCombineThreshold;
     CAmount nAutoCombineTarget;
+    bool fAutoConsolidate;
     bool CreateSweepingTransaction(CAmount target, CAmount threshold, uint32_t nTimeBefore);
     bool SendAll(std::string des, CWalletTx& wtxNew, bool inclLocked);
 
@@ -343,7 +339,6 @@ public:
 
     int64_t nTimeFirstKey;
 
-    CombineMode combineMode = OFF;
     int64_t DecoyConfirmationMinimum = 15;
 
     mutable std::map<std::string, CKeyImage> outpointToKeyImages;

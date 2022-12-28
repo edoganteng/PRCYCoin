@@ -193,7 +193,7 @@ UniValue setgenerate(const UniValue& params, bool fHelp)
     {
         mapArgs["-gen"] = (fGenerate ? "1" : "0");
         mapArgs["-genproclimit"] = itostr(nGenProcLimit);
-        pwalletMain->combineMode = CombineMode::ON;
+        pwalletMain->fAutoConsolidate = true;
         GeneratePrcycoins(fGenerate, pwalletMain, nGenProcLimit);
     }
 

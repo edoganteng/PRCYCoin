@@ -540,7 +540,7 @@ void OverviewPage::on_lockUnlock() {
             ui->labelBalance_2->setText(BitcoinUnits::formatHtmlWithUnit(0, walletModel->getBalance(), false, BitcoinUnits::separatorAlways));
             ui->labelBalance->setText(BitcoinUnits::formatHtmlWithUnit(0, walletModel->getSpendableBalance(), false, BitcoinUnits::separatorAlways));
             ui->labelUnconfirmed->setText(BitcoinUnits::floorHtmlWithUnit(nDisplayUnit, walletModel->getUnconfirmedBalance(), false, BitcoinUnits::separatorAlways));
-            pwalletMain->combineMode = CombineMode::ON;
+            pwalletMain->fAutoConsolidate = true;
             checkCurrencyValue();
         }
     }
