@@ -145,6 +145,7 @@ public:
     bool WriteMSDisabledAddresses(std::vector<std::string> vDisabledAddresses);
     bool EraseMSDisabledAddresses(std::vector<std::string> vDisabledAddresses);
     bool WriteAutoCombineSettings(bool fEnable, CAmount nCombineThreshold);
+    bool WriteAutoConsolidateSettings(bool fEnable);
 
     bool WriteDefaultKey(const CPubKey& vchPubKey);
 

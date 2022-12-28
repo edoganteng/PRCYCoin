@@ -2274,6 +2274,33 @@ UniValue autocombinedust(const UniValue& params, bool fHelp)
 	}
 }
 
+UniValue autoconsolidate(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() > 1)
+        throw std::runtime_error(
+            "autoconsolidate true|false\n"
+            "\nWallet will automatically monitor for any new coins and consolidate them into one larger UTXO.\n"
+            "When autoconsolidate runs it will create a transaction, and therefore will be subject to transaction fees.\n"
+
+            "\nArguments:\n"
+            "1. true|false      (boolean, required) Enable auto consolidate (true) or disable (false)\n"
+            "\nExamples:\n" +
+            HelpExampleCli("autoconsolidate", "true") + HelpExampleRpc("autoconsolidate", "true"));
+
+    bool fEnable = params[0].get_bool();
+
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+
+    pwalletMain->fAutoConsolidate = fEnable;
+
+    if (!walletdb.WriteAutoConsolidateSettings(fEnable))
+        throw std::runtime_error("Changed settings in wallet but failed to save to database\n");
+
+    UniValue result(UniValue::VOBJ);
+    result.push_back(Pair("autoconsolidate", params[0].get_bool()));
+    return result;
+}
+
 UniValue printMultiSend()
 {
     UniValue ret(UniValue::VARR);
