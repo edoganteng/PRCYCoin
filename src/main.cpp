@@ -4176,6 +4176,10 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool f
 
 bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig)
 {
+    // These are checks that are independent of context.
+    const bool IsPoS = block.IsProofOfStake();
+    const bool IsPoA = block.IsProofOfAudit() || block.IsPoABlockByVersion(); // These are the same... IsProofOfAudit() returns IsPoABlockByVersion()
+
     if (block.fChecked)
         return true;
 
@@ -4184,10 +4188,13 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
     if (!CheckBlockHeader(block, state, block.IsProofOfWork()))
         return state.DoS(100, error("CheckBlock() : CheckBlockHeader failed"),
             REJECT_INVALID, "bad-header", true);
+
+    // All potential-corruption validation must be done before we do any
+    // transaction validation, as otherwise we may mark the header as invalid
+    // because we receive the wrong transactions for it.
+
     // Check timestamp
-    //LogPrint("debug", "%s: block=%s  is proof of stake=%d, is proof of audit=%d\n", __func__, block.GetHash().ToString().c_str(),
-        //block.IsProofOfStake(), block.IsProofOfAudit());
-    if (!Params().IsRegTestNet() && !block.IsPoABlockByVersion() && block.GetBlockTime() >
+    if (!Params().IsRegTestNet() && !IsPoA && block.GetBlockTime() >
                                             GetAdjustedTime() + (block.IsProofOfStake() ? 180 : 7200)) // 3 minute future drift for PoS
         return state.Invalid(error("CheckBlock() : block timestamp too far in the future"),
             REJECT_INVALID, "time-too-new");
@@ -4236,10 +4243,6 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
                 REJECT_INVALID, "bad-txns-duplicate", true);
     }
 
-    // All potential-corruption validation must be done before we do any
-    // transaction validation, as otherwise we may mark the header as invalid
-    // because we receive the wrong transactions for it.
-
     // Size limits
     unsigned int nMaxBlockSize = MAX_BLOCK_SIZE_CURRENT;
     if (block.vtx.empty() || block.vtx.size() > nMaxBlockSize ||
@@ -4248,7 +4251,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
             REJECT_INVALID, "bad-blk-length");
 
     // First transaction must be coinbase, the rest must not be
-    if ((!block.IsPoABlockByVersion()) && (block.vtx.empty() || !block.vtx[0].IsCoinBase()))
+    if ((!IsPoA) && (block.vtx.empty() || !block.vtx[0].IsCoinBase()))
         return state.DoS(100, error("CheckBlock() : first tx is not coinbase"),
             REJECT_INVALID, "bad-cb-missing");
     for (unsigned int i = 1; i < block.vtx.size(); i++)
@@ -4256,10 +4259,11 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
             return state.DoS(100, error("CheckBlock() : more than one coinbase"),
                 REJECT_INVALID, "bad-cb-multiple");
 
-    if (block.IsProofOfStake()) {
+    if (IsPoS) {
         // Coinbase output should be empty if proof-of-stake block
         if (block.vtx[0].vout.size() != 1 || !block.vtx[0].vout[0].IsEmpty())
             return state.DoS(100, error("CheckBlock() : coinbase output not empty for proof-of-stake block"));
+
         // Second transaction must be coinstake, the rest must not be
         if (block.vtx.empty() || !block.vtx[1].IsCoinStake())
             return state.DoS(100, error("CheckBlock() : second tx is not coinstake"));
@@ -4282,7 +4286,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
         }
     }
 
-    if (block.IsProofOfAudit() || block.IsProofOfWork()) {
+    if (IsPoA || block.IsProofOfWork()) {
         //verify commitment
         if (!VerifyZeroBlindCommitment(block.vtx[0].vout[0]))
             return state.DoS(100, error("CheckBlock() : PoS rewards commitment not correct"));
@@ -4291,7 +4295,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
     /**
      * @todo Audit checkblock
      */
-    if (block.IsProofOfAudit()) {
+    if (IsPoA) {
         if (chainActive.Tip()->nHeight < Params().START_POA_BLOCK()) {
             return state.DoS(100, error("CheckBlock() : PoA block should only start at block height=%d", Params().START_POA_BLOCK()));
         }
