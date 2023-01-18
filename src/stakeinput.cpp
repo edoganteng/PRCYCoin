@@ -43,14 +43,14 @@ bool CPrcyStake::CreateTxIn(CWallet* pwallet, CTxIn& txIn, uint256 hashTxOut)
 
 CAmount CPrcyStake::GetValue(const unsigned char* encryptionKey)
 {
-    // If it's from CoinBase or CoinStake, value is visible
+    /*// If it's from CoinBase or CoinStake, value is visible
     if (txFrom.IsCoinBase() || txFrom.IsCoinStake()) {
         return txFrom.vout[nPosition].nValue;
-    }
+    }*/
 
     // If it's from our wallet, we already have the value
     const CWalletTx* pWalletTx = pwalletMain->GetWalletTx(txFrom.GetHash());
-    if (pWalletTx) {
+    if (pWalletTx && pwalletMain->IsMine(pWalletTx->vout[nPosition])) {
         return pwalletMain->getCTxOutValue(*pWalletTx, pWalletTx->vout[nPosition]);
     }
 
