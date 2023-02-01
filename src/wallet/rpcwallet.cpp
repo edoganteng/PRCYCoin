@@ -3017,28 +3017,6 @@ UniValue showtxprivatekeys(const UniValue& params, bool fHelp) {
     return ret;
 }
 
-UniValue rescan(const UniValue& params, bool fHelp) {
-    if (fHelp || params.size() != 0)
-        throw std::runtime_error(
-                "rescan\n"
-                "\nRescan wallet transactions from the first block.\n"
-                "\nArguments:\n"
-                "\nResult:\n"
-                "\"scanned wallet transactions\"    \n"
-                "\nExamples:\n" +
-                HelpExampleCli("rescan", "") + HelpExampleCli("rescan", "\"\"") +
-                HelpExampleRpc("rescan", ""));
-
-    EnsureWallet();
-    EnsureWalletIsUnlocked();
-
-    int nHeight = 1;
-    if (!pwalletMain->RescanAfterUnlock(nHeight)) {
-        return "Failed to rescan";
-    }
-    return "Done";
-}
-
 UniValue rescanwallettransactions(const UniValue& params, bool fHelp) {
     if (fHelp || params.size() != 1)
         throw std::runtime_error(
