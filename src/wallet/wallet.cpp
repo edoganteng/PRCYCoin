@@ -474,59 +474,6 @@ bool CWallet::LoadWatchOnly(const CScript& dest)
     return CCryptoKeyStore::AddWatchOnly(dest);
 }
 
-bool CWallet::RescanAfterUnlock(int fromHeight)
-{
-    if (IsLocked()) {
-        return false;
-    }
-
-    if (fImporting || fReindex) {
-        return false;
-    }
-    CBlockIndex* pindex;
-
-    if (fromHeight == 0) {
-        LOCK2(cs_main, cs_wallet);
-        //rescan from scanned position stored in database
-        int scannedHeight = 0;
-        CWalletDB(strWalletFile).ReadScannedBlockHeight(scannedHeight);
-        if (scannedHeight > chainActive.Height() || scannedHeight == 0) {
-            pindex = chainActive.Genesis();
-        } else {
-            pindex = chainActive[scannedHeight];
-        }
-
-        {
-            if (mapWallet.size() > 0) {
-                //looking for highest blocks
-                for (std::map<uint256, CWalletTx>::iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
-                    CWalletTx* wtx = &((*it).second);
-                    uint256 wtxid = (*it).first;
-                    if (mapBlockIndex.count(wtx->hashBlock) == 1) {
-                        CBlockIndex* pForTx = mapBlockIndex[wtx->hashBlock];
-                        if (pForTx != NULL && pForTx->nHeight > pindex->nHeight) {
-                            if (chainActive.Contains(pForTx)) {
-                                pindex = pForTx;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    } else {
-        LOCK2(cs_main, cs_wallet);
-        //scan from a specific block height
-        if (fromHeight > chainActive.Height()) {
-            pindex = chainActive[chainActive.Height()];
-        } else {
-            pindex = chainActive[fromHeight];
-        }
-    }
-
-    ScanForWalletTransactions(pindex, true, fromHeight != 0?pindex->nHeight:-1);
-    return true;
-}
-
 bool CWallet::Unlock(const SecureString& strWalletPassphrase, bool anonymizeOnly)
 {
     CCrypter crypter;
@@ -549,7 +496,16 @@ bool CWallet::Unlock(const SecureString& strWalletPassphrase, bool anonymizeOnly
     }
 
     if (rescanNeeded) {
-        RescanAfterUnlock(0);
+        CBlockIndex* pindex;
+        //rescan from scanned position stored in database
+        int scannedHeight = 0;
+        CWalletDB(strWalletFile).ReadScannedBlockHeight(scannedHeight);
+        if (scannedHeight > chainActive.Height() || scannedHeight == 0) {
+            pindex = chainActive.Genesis();
+        } else {
+            pindex = chainActive[scannedHeight];
+        }
+        pwalletMain->ScanForWalletTransactions(pindex);
         walletUnlockCountStatus++;
         return true;
     }
@@ -678,7 +634,16 @@ bool CWallet::ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase,
     }
 
     if (rescanNeeded) {
-        RescanAfterUnlock(0);
+        CBlockIndex* pindex;
+        //rescan from scanned position stored in database
+        int scannedHeight = 0;
+        CWalletDB(strWalletFile).ReadScannedBlockHeight(scannedHeight);
+        if (scannedHeight > chainActive.Height() || scannedHeight == 0) {
+            pindex = chainActive.Genesis();
+        } else {
+            pindex = chainActive[scannedHeight];
+        }
+        pwalletMain->ScanForWalletTransactions(pindex);
         return true;
     }
 

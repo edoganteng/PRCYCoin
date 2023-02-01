@@ -3025,7 +3025,7 @@ UniValue rescanwallettransactions(const UniValue& params, bool fHelp) {
                 "\nArguments:\n"
                 "\nblock height: block height from which the chain will be rescanned\n"
                 "\nResult:\n"
-                "\"scanned wallet transactions\"    \n"
+                "\n    (result) Done, if successful. Wallet transactions should be visible.\n"
                 "\nExamples:\n" +
                 HelpExampleCli("rescanwallettransactions", "") + HelpExampleCli("rescanwallettransactions", "\"\"") +
                 HelpExampleRpc("rescanwallettransactions", ""));
@@ -3033,13 +3033,20 @@ UniValue rescanwallettransactions(const UniValue& params, bool fHelp) {
     EnsureWallet();
     EnsureWalletIsUnlocked();
 
-    int nHeight = 0;
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    CBlockIndex *pindex = chainActive.Genesis();
     if (params.size() == 1) {
-        nHeight = params[0].get_int();
+        pindex = chainActive[params[0].get_int()];
+        if (!pindex) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid height");
+        }
     }
-    if (!pwalletMain->RescanAfterUnlock(nHeight)) {
-        return "Failed to rescan";
+
+    if (pwalletMain->ScanForWalletTransactions(pindex) == -1) {
+        throw JSONRPCError(RPC_MISC_ERROR, "Failed to rescan or shutdown requested.");
     }
+
     return "Done";
 }
 
