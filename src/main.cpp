@@ -4940,6 +4940,16 @@ bool ProcessNewBlock(CValidationState& state, CNode* pfrom, CBlock* pblock, CDis
                         pwalletMain->mapWallet.erase(pblock->vtx[1].GetHash());
                     }
                 }
+                bool initialDownloadCheck = IsInitialBlockDownload();
+                if (!initialDownloadCheck &&
+                    pblock->IsPoABlockByVersion()) // Run DeleteWalletTransactions on PoA blocks
+                {
+                    while(pwalletMain->DeleteWalletTransactions(pindex, false)) {}
+                } else {
+                    if (initialDownloadCheck && pindex->nHeight % fDeleteInterval == 0) {
+                        while(pwalletMain->DeleteWalletTransactions(pindex, false)) {}
+                    }
+                }
             }
             // Check spamming
             if(pindex && pfrom && GetBoolArg("-blockspamfilter", DEFAULT_BLOCK_SPAM_FILTER)) {
@@ -4960,16 +4970,6 @@ bool ProcessNewBlock(CValidationState& state, CNode* pfrom, CBlock* pblock, CDis
                 }
             }
             return error("%s : AcceptBlock FAILED", __func__);
-        }
-        bool initialDownloadCheck = IsInitialBlockDownload();
-        if (!initialDownloadCheck &&
-            pblock->IsPoABlockByVersion()) // Run DeleteWalletTransactions on PoA blocks
-        {
-            pwalletMain->DeleteWalletTransactions(pindex);
-        } else {
-            if (initialDownloadCheck && pindex->nHeight % fDeleteInterval == 0) {
-                pwalletMain->DeleteWalletTransactions(pindex);
-            }
         }
     }
 
