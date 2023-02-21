@@ -497,6 +497,11 @@ bool CWallet::LoadWatchOnly(const CScript& dest)
     return CCryptoKeyStore::AddWatchOnly(dest);
 }
 
+/** Rescan the whole chain for transactions */
+void CWallet::ForceRescanWallet() {
+    RescanAfterUnlock(1);
+}
+
 bool CWallet::RescanAfterUnlock(int fromHeight)
 {
     if (IsLocked()) {

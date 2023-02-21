@@ -108,6 +108,7 @@ private:
     QAction* encryptWalletAction;
     QAction* backupWalletAction;
     QAction* showSeedAction;
+    QAction* rescanAction;
     QAction* changePassphraseAction;
     QAction* unlockWalletAction;
     QAction* lockWalletAction;
@@ -253,6 +254,8 @@ private Q_SLOTS:
     void openClicked();
     /** Show 24 word wallet seed phrase */
     void showSeedPhrase();
+    /** Rescan wallet */
+    void rescan();
 
 #endif // ENABLE_WALLET
     /** Social Networks */

@@ -68,6 +68,8 @@ public Q_SLOTS:
     void backupWallet();
     /** Show 24 word seed phrase */
     void showSeedPhrase();
+    /** Rescan wallet */
+    void rescan();
     /** Change encrypted wallet passphrase */
     void changePassphrase();
     /** Ask for passphrase to unlock wallet temporarily */

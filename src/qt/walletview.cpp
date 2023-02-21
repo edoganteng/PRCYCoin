@@ -338,6 +338,14 @@ void WalletView::showSeedPhrase()
     }
 }
 
+void WalletView::rescan()
+{
+    if(!walletModel)
+        return;
+
+    walletModel->rescan();
+}
+
 void WalletView::changePassphrase()
 {
     AskPassphraseDialog dlg(AskPassphraseDialog::Mode::ChangePass, this, walletModel, AskPassphraseDialog::Context::ChangePass);

@@ -96,6 +96,9 @@ public Q_SLOTS:
     /** Return 24 word seed phrase */
     void showSeedPhrase();
 
+    /** Rescan wallet */
+    void rescan();
+
     /** Show incoming transaction notification for new transactions.
 
         The new items are those between start and end inclusive, under the given parent item.
