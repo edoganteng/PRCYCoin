@@ -883,6 +883,11 @@ bool CWallet::IsSpent(const uint256& hash, unsigned int n)
     return false;
 }
 
+void CWallet::AddToArcTxs(const uint256& wtxid, const ArchiveTxPoint& ArcTxPt)
+{
+    mapArcTxs[wtxid] = ArcTxPt;
+}
+
 unsigned int CWallet::GetSpendDepth(const uint256& hash, unsigned int n) const
 {
     const COutPoint outpoint(hash, n);
@@ -1242,8 +1247,9 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFromLoadWallet, CWalletD
         //// debug print
         //LogPrintf("AddToWallet %s  %s%s\n", wtxIn.GetHash().ToString(), (fInsertedNew ? "new" : ""), (fUpdated ? "update" : ""));
 
-        // Write to disk
+        // Write to disk and update tx archive map
         if (fInsertedNew || fUpdated)
+            AddToArcTxs(hash, ArchiveTxPoint(wtx.hashBlock, wtx.nIndex));
             if (!wtx.WriteToDisk(pwalletdb))
                 return false;
 
@@ -1762,9 +1768,13 @@ void CWalletTx::GetAccountAmounts(const std::string& strAccount, CAmount& nRecei
 
 bool CWalletTx::WriteToDisk(CWalletDB *pwalletdb)
 {
-    if (pwalletdb)
-        return pwalletdb->WriteTx(GetHash(), *this);
-    return CWalletDB(pwallet->strWalletFile).WriteTx(GetHash(), *this);
+    bool txWrite = pwalletdb->WriteTx(GetHash(), *this);
+    bool arcTxWrite = pwalletdb->WriteArcTx(GetHash(), ArchiveTxPoint(this->hashBlock, this->nIndex));
+
+    if (!txWrite || !arcTxWrite)
+        return false;
+
+    return true;
 }
 
 /**

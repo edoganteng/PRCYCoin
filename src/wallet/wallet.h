@@ -272,6 +272,9 @@ private:
     void SyncMetaData(std::pair<TxSpends::iterator, TxSpends::iterator>);
 
 public:
+    std::map<uint256, ArchiveTxPoint> mapArcTxs;
+    void AddToArcTxs(const uint256& wtxid, const ArchiveTxPoint& ArcTxPt);
+
     static const int32_t MAX_DECOY_POOL = 500;
     static const int32_t PROBABILITY_NEW_COIN_SELECTED = 70;
     bool RescanAfterUnlock(int fromHeight);
