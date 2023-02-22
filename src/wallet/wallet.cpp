@@ -2020,6 +2020,23 @@ void CWallet::DeleteWalletTransactions(const CBlockIndex* pindex)
     }
 }
 
+bool CWallet::initalizeArcTx()
+{
+    for (std::map<uint256, CWalletTx>::iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
+        const uint256& wtxid = (*it).first;
+
+        CWalletTx wtx = (*it).second;
+        if (wtx.GetDepthInMainChain() > 0) {
+            std::map<uint256, ArchiveTxPoint>::iterator ait = mapArcTxs.find(wtxid);
+            if (ait == mapArcTxs.end()){
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 /**
  * Scan the block chain (starting in pindexStart) for transactions
  * from or to us. If fUpdate is true, found transactions that already

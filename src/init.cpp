@@ -1623,6 +1623,55 @@ bool AppInit2(bool isDaemon)
                 strErrors << _("Error loading wallet.dat") << "\n";
         }
 
+        uiInterface.InitMessage(_("Validating transaction archive..."));
+        bool fInitializeArcTx = pwalletMain->initalizeArcTx();
+        if(!fInitializeArcTx) {
+          //ArcTx validation failed, delete wallet point and clear vWtx
+          delete pwalletMain;
+          pwalletMain = NULL;
+          vWtx.clear();
+
+          //Zap All Transactions
+          uiInterface.InitMessage(_("Transaction archive not initalized, Zapping all transactions..."));
+          LogPrintf("Transaction archive not initalized, Zapping all transactions.\n");
+          pwalletMain = new CWallet(strWalletFile);
+          DBErrors nZapWalletRet = pwalletMain->ZapWalletTx(vWtx);
+          if (nZapWalletRet != DB_LOAD_OK) {
+              uiInterface.InitMessage(_("Error loading wallet.zero: Wallet corrupted"));
+              return false;
+          }
+
+          delete pwalletMain;
+          pwalletMain = NULL;
+
+          //Reload Wallet
+          uiInterface.InitMessage(_("Reloading wallet, set to rescan..."));
+          pwalletMain = new CWallet(strWalletFile);
+          DBErrors nLoadWalletRet = pwalletMain->LoadWallet(fFirstRun);
+          if (nLoadWalletRet != DB_LOAD_OK)
+          {
+              if (nLoadWalletRet == DB_CORRUPT)
+                  strErrors << _("Error loading wallet.zero: Wallet corrupted") << "\n";
+              else if (nLoadWalletRet == DB_NONCRITICAL_ERROR)
+              {
+                  std::string msg(_("Warning: error reading wallet.zero! All keys read correctly, but transaction data"
+                               " or address book entries might be missing or incorrect."));
+                  UIWarning(msg);
+              }
+              else if (nLoadWalletRet == DB_TOO_NEW)
+                  strErrors << _("Error loading wallet.zero: Wallet requires newer version of Bitcoin Core") << "\n";
+
+              else if (nLoadWalletRet == DB_NEED_REWRITE)
+              {
+                  strErrors << _("Wallet needed to be rewritten: restart Zero to complete") << "\n";
+                  LogPrintf("%s", strErrors.str());
+                  return UIError(strErrors.str());
+              }
+              else
+                  strErrors << _("Error loading wallet.zero") << "\n";
+          }
+        }
+
         if (GetBoolArg("-upgradewallet", fFirstRun)) {
             int nMaxVersion = GetArg("-upgradewallet", 0);
             if (nMaxVersion == 0) // the -upgradewallet without argument case
@@ -1700,7 +1749,7 @@ bool AppInit2(bool isDaemon)
             }
         }
 
-        if (GetBoolArg("-rescan", false)) {
+        if (GetBoolArg("-rescan", false) || !fInitializeArcTx) {
             pindexRescan = chainActive.Genesis();
         } else {
             CWalletDB walletdb(strWalletFile);
@@ -1730,7 +1779,7 @@ bool AppInit2(bool isDaemon)
             CWalletDB::IncrementUpdateCounter();
 
             // Restore wallet transaction metadata after -zapwallettxes=1
-            if (GetBoolArg("-zapwallettxes", false) && GetArg("-zapwallettxes", "1") != "2") {
+            if (GetBoolArg("-zapwallettxes", false) && GetArg("-zapwallettxes", "1") != "2"  && fInitializeArcTx) {
                 CWalletDB walletdb(strWalletFile);
                 for (const CWalletTx& wtxOld : vWtx) {
                     uint256 hash = wtxOld.GetHash();
