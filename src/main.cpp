@@ -79,6 +79,7 @@ int nScriptCheckThreads = 0;
 std::atomic<bool> fImporting{false};
 std::atomic<bool> fReindex{false};
 bool fTxIndex = true;
+bool fArchive = true;
 bool fIsBareMultisigStd = true;
 bool fCheckBlockIndex = false;
 bool fVerifyingBlocks = false;
@@ -5340,6 +5341,7 @@ bool InitBlockIndex()
     if (chainActive.Genesis() != NULL)
         return true;
 
+    pblocktree->WriteFlag("archiverule", fArchive);
     // Use the provided setting for -txindex in the new database
     fTxIndex = GetBoolArg("-txindex", true);
     pblocktree->WriteFlag("txindex", fTxIndex);

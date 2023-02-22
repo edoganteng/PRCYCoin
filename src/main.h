@@ -147,6 +147,7 @@ extern std::atomic<bool> fImporting;
 extern std::atomic<bool> fReindex;
 extern int nScriptCheckThreads;
 extern bool fTxIndex;
+extern bool fArchive;
 extern bool fIsBareMultisigStd;
 extern bool fCheckBlockIndex;
 extern size_t nCoinCacheUsage;

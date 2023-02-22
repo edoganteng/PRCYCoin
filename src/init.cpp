@@ -1410,6 +1410,20 @@ bool AppInit2(bool isDaemon)
     LogPrintf("* Using %.1fMiB for chain state database\n", nCoinDBCache * (1.0 / 1024 / 1024));
     LogPrintf("* Using %.1fMiB for in-memory UTXO set\n", nCoinCacheUsage * (1.0 / 1024 / 1024));
 
+    if ( fReindex == 0 )
+    {
+        bool checkval;
+        //One time reindex to enable transaction archiving.
+        pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
+        pblocktree->ReadFlag("archiverule", checkval);
+        if (checkval != fArchive)
+        {
+            pblocktree->WriteFlag("archiverule", fArchive);
+            LogPrintf("Transaction archive not set, will reindex. could take a while.\n");
+            fReindex = true;
+        }
+    }
+
     bool fLoaded = false;
     while (!fLoaded && !ShutdownRequested()) {
         bool fReset = fReindex;
