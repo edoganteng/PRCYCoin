@@ -192,55 +192,62 @@ void HistoryPage::updateTableData()
 void HistoryPage::updateTableData(CWallet* wallet)
 {
     if (!wallet || wallet->IsLocked()) return;
+
+    bool lockedMain = false, lockedWallet = false;
     TRY_LOCK(cs_main, lockMain);
-    if (!lockMain)
-        return;
-    TRY_LOCK(pwalletMain->cs_wallet, lockWallet);
-    if (!lockWallet)
-        return;
-    {
-        ui->tableView->setSortingEnabled(false);
-        while (ui->tableView->rowCount() > 0)
-        {
-            ui->tableView->removeRow(0);
-        }
-        ui->tableView->setRowCount(0);
-        std::vector<std::map<QString, QString> > txs;
-        txs = WalletUtil::getTXs(wallet);
-        for (int row = 0; row < (short)txs.size(); row++) {
-            ui->tableView->insertRow(row);
-            int col = 0;
-            for (QString dataName : {"date", "type", "address", "amount", "confirmations"}) {
-                QString data = txs[row].at(dataName);
-                QDateTime date;
-                QTableWidgetItem* cell = new QTableWidgetItem();
-                switch (col) {
-                case 0: /*date*/
-                    date = QDateTime::fromString(data, "MM/dd/yy hh:mm:ss").addYears(100);
-                    cell->setData(0, date);
-                    break;
-                case 3: /*amount*/
-                    if (settings.value("fHideBalance", false).toBool()) {
-                        cell->setData(0, QString("Hidden"));
-                    } else {
-                        cell->setData(0, data);
+    if (lockMain.owns_lock()) {
+        lockedMain = true;
+        TRY_LOCK(pwalletMain->cs_wallet, lockWallet);
+        if (lockWallet.owns_lock()) {
+            lockedWallet = true;
+
+            ui->tableView->setSortingEnabled(false);
+            ui->tableView->clearContents();
+            ui->tableView->setRowCount(0);
+
+            const auto& txs = WalletUtil::getTXs(wallet);
+            int row = 0;
+            for (const auto& tx : txs) {
+                ui->tableView->insertRow(row);
+                int col = 0;
+                for (const auto& dataPair : tx) {
+                    const auto& dataName = dataPair.first;
+                    const auto& data = dataPair.second;
+                    auto cell = ui->tableView->item(row, col);
+                    if (!cell) {
+                        cell = new QTableWidgetItem();
+                        ui->tableView->setItem(row, col, cell);
                     }
-                    break;
-                case 4: /*confirmations*/
-                    cell->setData(0, data.toInt());
-                    break;
-                default:
-                    cell->setData(0, data);
-                    break;
+                    cell->setTextAlignment(Qt::AlignCenter);
+                    if (dataName == "date") {
+                        const auto date = QDateTime::fromString(data, "MM/dd/yy hh:mm:ss").addYears(100);
+                        cell->setData(0, date);
+                    } else if (dataName == "amount") {
+                        const bool hideBalance = settings.value("fHideBalance", false).toBool();
+                        if (hideBalance) {
+                            cell->setData(0, QVariant("Hidden"));
+                        } else {
+                            const double amount = data.toDouble();
+                            cell->setData(0, QVariant(amount));
+                            cell->setText(data);
+                        }
+                    } else if (dataName == "confirmations") {
+                        const int confirmations = data.toInt();
+                        cell->setData(0, QVariant(confirmations));
+                        cell->setText(data);
+                    } else {
+                        cell->setData(0, QVariant(data));
+                        cell->setText(data);
+                    }
+                    col++;
                 }
-                ui->tableView->setItem(row, col, cell);
-                cell->setTextAlignment(Qt::AlignCenter);
-                col++;
+                row++;
             }
+
+            ui->tableView->setVisible(!txs.empty());
+            ui->tableView->sortByColumn(4, Qt::AscendingOrder);
+            ui->tableView->setSortingEnabled(true);
         }
-        ui->tableView->setVisible(ui->tableView->rowCount());
-        ui->tableView->sortByColumn(4, Qt::AscendingOrder);
-        ui->tableView->setSortingEnabled(true);
     }
 }
 
