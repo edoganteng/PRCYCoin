@@ -160,6 +160,7 @@ void SendCoinsDialog::on_sendButton_clicked(){
     bool isValidAddresss = (regex_match(address.toStdString(), std::regex("[a-zA-z0-9]+")))&&(address.length()==99||address.length()==110);
     bool isValidAmount = ((recipient.amount>0) && (recipient.amount<=balance));
     bool fAlwaysRequest2FA = settings.value("fAlwaysRequest2FA").toBool();
+    bool fAlwaysRequestPassphrase = settings.value("fAlwaysRequestPassphrase").toBool();
 
     form->errorAddress(isValidAddresss);
     form->errorAmount(isValidAmount);
@@ -189,7 +190,7 @@ void SendCoinsDialog::on_sendButton_clicked(){
     // and make many transactions while unlocking through this dialog
     // will call relock
     WalletModel::EncryptionStatus encStatus = model->getEncryptionStatus();
-    if (encStatus == model->Locked || encStatus == model->UnlockedForStakingOnly) {
+    if (encStatus == model->Locked || encStatus == model->UnlockedForStakingOnly || fAlwaysRequestPassphrase) {
         WalletModel::UnlockContext ctx(model->requestUnlock(AskPassphraseDialog::Context::Send, true));
         if (!ctx.isValid()) {
             // Unlock wallet was cancelled
@@ -291,20 +292,21 @@ void SendCoinsDialog::on_sendButton_clicked(){
 void SendCoinsDialog::sendTx() {
     CWalletTx resultTx;
     bool success = false;
+    std::string sendAddress = send_address.toStdString();
     CAmount spendable = model->getSpendableBalance();
     CAmount balance = model->getBalance();
     try {
         if (send_amount == spendable && spendable == balance) {
             // Send All
             success = pwalletMain->SendAll(
-                send_address.toStdString(),
+                sendAddress,
                 resultTx,
                 false
             );
         } else {
             // Send
             success = pwalletMain->SendToStealthAddress(
-                send_address.toStdString(),
+                sendAddress,
                 send_amount,
                 resultTx,
                 false
@@ -373,7 +375,27 @@ void SendCoinsDialog::sendTx() {
     if (success){
         WalletUtil::getTx(pwalletMain, resultTx.GetHash());
         QString txhash = resultTx.GetHash().GetHex().c_str();
+
+        std::string myAddress;
+        pwalletMain->ComputeStealthPublicAddress("masteraccount", myAddress);
+        bool showCheckBox = false;
+        int indexOut = -1;
+        if (sendAddress == myAddress) {
+            for (int i=0; i < (int)resultTx.vout.size(); i++) {
+                CTxOut& out = resultTx.vout[i];
+                CAmount value = pwalletMain->getCTxOutValue(resultTx, out);
+                if (value == Params().MNCollateralAmt()) {
+                    showCheckBox = true;
+                    indexOut = i;
+                }
+            }
+        }
+
         QMessageBox msgBox;
+        QCheckBox *cb = new QCheckBox("5000 PRCY transaction detected. Would you like to lock this transaction output?");
+        if (showCheckBox) {
+            msgBox.setCheckBox(cb);
+        }
         QPushButton *viewButton = msgBox.addButton(tr("View on Explorer"), QMessageBox::ActionRole);
         QPushButton *copyButton = msgBox.addButton(tr("Copy"), QMessageBox::ActionRole);
         QPushButton *okButton = msgBox.addButton(tr("OK"), QMessageBox::ActionRole);
@@ -398,6 +420,12 @@ void SendCoinsDialog::sendTx() {
         if (msgBox.clickedButton() == copyButton) {
         //Copy txhash to clipboard
         GUIUtil::setClipboard(txhash);
+        }
+        if ((msgBox.clickedButton() == viewButton || msgBox.clickedButton() == copyButton || msgBox.clickedButton() == okButton) && cb->isChecked()) {
+            // Lock collateral output
+            COutPoint collateralOut(resultTx.GetHash(), indexOut);
+            model->lockCoin(collateralOut);
+            LogPrintf("Masternode transaction: %s:%i has been locked\n", resultTx.GetHash().GetHex().c_str(), indexOut);
         }
     }
 }

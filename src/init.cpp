@@ -20,6 +20,7 @@
 #include "fs.h"
 #include "httpserver.h"
 #include "httprpc.h"
+#include "invalid.h"
 #include "key.h"
 #include "main.h"
 #include "masternode-budget.h"
@@ -369,7 +370,6 @@ std::string HelpMessage(HelpMessageMode mode)
     }
     strUsage += HelpMessageOpt("-datadir=<dir>", _("Specify data directory"));
     strUsage += HelpMessageOpt("-debuglogfile=<file>", strprintf(_("Specify location of debug log file: this can be an absolute path or a path relative to the data directory (default: %s)"), DEFAULT_DEBUGLOGFILE));
-    strUsage += HelpMessageOpt("-backuppath=<(dir/file)>", _("Specify custom backup path to add a copy of any wallet backup. If set as dir, every backup generates a timestamped file. If set as file, will rewrite to that file every backup."));
     strUsage += HelpMessageOpt("-dbcache=<n>", strprintf(_("Set database cache size in megabytes (%d to %d, default: %d)"), nMinDbCache, nMaxDbCache, nDefaultDbCache));
     strUsage += HelpMessageOpt("-loadblock=<file>", _("Imports blocks from external blk000??.dat file") + " " + _("on startup"));
     strUsage += HelpMessageOpt("-maxreorg=<n>", strprintf(_("Set the Maximum reorg depth (default: %u)"), Params(CBaseChainParams::MAIN).MaxReorganizationDepth()));
@@ -428,9 +428,15 @@ std::string HelpMessage(HelpMessageMode mode)
 
 #ifdef ENABLE_WALLET
     strUsage += HelpMessageGroup(_("Wallet options:"));
+    strUsage += HelpMessageOpt("-backuppath=<(dir/file)>", _("Specify custom backup path to add a copy of any wallet backup. If set as dir, every backup generates a timestamped file. If set as file, will rewrite to that file every backup."));
     strUsage += HelpMessageOpt("-createwalletbackups=<n>", _("Number of automatic wallet backups (default: 10)"));
+    strUsage += HelpMessageOpt("-custombackupthreshold=<n>", strprintf(_("Number of custom location backups to retain (default: %d)"), DEFAULT_CUSTOMBACKUPTHRESHOLD));
     strUsage += HelpMessageOpt("-disablewallet", _("Do not load the wallet and disable wallet RPC calls"));
     strUsage += HelpMessageOpt("-keypool=<n>", strprintf(_("Set key pool size to <n> (default: %u)"), 100));
+    strUsage += HelpMessageOpt("-deletetx", _("Enable Old Transaction Deletion"));
+    strUsage += HelpMessageOpt("-deleteinterval", strprintf(_("Delete transaction every <n> blocks during inital block download (default: %i)"), DEFAULT_TX_DELETE_INTERVAL));
+    strUsage += HelpMessageOpt("-keeptxnum", strprintf(_("Keep the last <n> transactions (default: %i)"), DEFAULT_TX_RETENTION_LASTTX));
+    strUsage += HelpMessageOpt("-keeptxfornblocks", strprintf(_("Keep transactions for at least <n> blocks (default: %i)"), DEFAULT_TX_RETENTION_BLOCKS));
     if (GetBoolArg("-help-debug", false))
         strUsage += HelpMessageOpt("-mintxfee=<amt>", strprintf(_("Fees (in %s/Kb) smaller than this are considered zero fee for transaction creation (default: %s)"),
                 CURRENCY_UNIT, FormatMoney(CWallet::minTxFee.GetFeePerK())));
@@ -510,6 +516,7 @@ std::string HelpMessage(HelpMessageMode mode)
 #ifdef ENABLE_WALLET
     strUsage += HelpMessageGroup(_("Staking options:"));
     strUsage += HelpMessageOpt("-staking=<n>", strprintf(_("Enable staking functionality (0-1, default: %u)"), 1));
+    strUsage += HelpMessageOpt("-prcystake=<n>", strprintf(_("Enable or disable staking functionality for PRCY inputs (0-1, default: %u)"), 1));
     strUsage += HelpMessageOpt("-reservebalance=<amt>", _("Keep the specified amount available for spending at all times (default: 0)"));
     if (GetBoolArg("-help-debug", false)) {
         strUsage += HelpMessageOpt("-printstakemodifier", _("Display the stake modifier calculations in the debug.log file."));
@@ -1242,9 +1249,7 @@ bool AppInit2(bool isDaemon)
     }  // (!fDisableWallet)
 #endif // ENABLE_WALLET
     // ********************************************************* Step 6: network initialization
-    //run daemon only
-    if (isDaemon)
-        RegisterNodeSignals(GetNodeSignals());       // block first after unlock/lock retry register
+    RegisterNodeSignals(GetNodeSignals());
 
     // sanitize comments per BIP-0014, format user agent and check total size
     std::vector<std::string> uacomments;
@@ -1460,6 +1465,9 @@ bool AppInit2(bool isDaemon)
                     break;
                 }
 
+                // Populate list of invalid/fraudulent outpoints that are banned from the chain
+                invalid_out::LoadOutpoints();
+
                 // Recalculate money supply for blocks
                 if (GetBoolArg("-reindexmoneysupply", false)) {
                     RecalculatePRCYSupply(1);
@@ -1619,6 +1627,27 @@ bool AppInit2(bool isDaemon)
             pwalletMain->SetMaxVersion(nMaxVersion);
         }
 
+        //Set Transaction Deletion Options
+        fTxDeleteEnabled = GetBoolArg("-deletetx", false);
+        fTxConflictDeleteEnabled = GetBoolArg("-deleteconflicttx", true);
+
+        fDeleteInterval = GetArg("-deleteinterval", DEFAULT_TX_DELETE_INTERVAL);
+        if (fDeleteInterval < 1)
+          return UIError("deleteinterval must be greater than 0");
+
+        fKeepLastNTransactions = GetArg("-keeptxnum", DEFAULT_TX_RETENTION_LASTTX);
+        if (fKeepLastNTransactions < 1)
+          return UIError("keeptxnum must be greater than 0");
+
+        fDeleteTransactionsAfterNBlocks = GetArg("-keeptxfornblocks", DEFAULT_TX_RETENTION_BLOCKS);
+        if (fDeleteTransactionsAfterNBlocks < 1)
+          return UIError("keeptxfornblocks must be greater than 0");
+
+        if (fDeleteTransactionsAfterNBlocks < Params().COINBASE_MATURITY() + 1 ) {
+          LogPrintf("keeptxfornblock is less than Params().COINBASE_MATURITY(), Setting to %i\n", Params().COINBASE_MATURITY() + 1);
+          fDeleteTransactionsAfterNBlocks = Params().COINBASE_MATURITY() + 1;
+        }
+
         if (fFirstRun) {
             // Create new keyUser and set as default key
             if (!pwalletMain->IsHDEnabled()) {
@@ -1648,6 +1677,19 @@ bool AppInit2(bool isDaemon)
         RegisterValidationInterface(pwalletMain);
         int height = -1;
         CBlockIndex* pindexRescan = chainActive.Tip();
+
+        {
+            //Sort Transactions by block and block index, then reorder
+            LOCK2(cs_main, pwalletMain->cs_wallet);
+            if (chainActive.Tip()) {
+                LogPrintf("Runnning transaction reorder\n");
+                int64_t maxOrderPos = 0;
+                std::map<std::pair<int,int>, CWalletTx*> mapSorted;
+                pwalletMain->ReorderWalletTransactions(mapSorted, maxOrderPos);
+                pwalletMain->UpdateWalletTransactionOrder(mapSorted, true);
+            }
+        }
+
         if (GetBoolArg("-rescan", false)) {
             pindexRescan = chainActive.Genesis();
         } else {
@@ -1675,10 +1717,11 @@ bool AppInit2(bool isDaemon)
             }
             LogPrintf("Rescan completed in %15dms\n", GetTimeMillis() - nWalletRescanTime);
             pwalletMain->SetBestChain(chainActive.GetLocator());
-            nWalletDBUpdated++;
+            CWalletDB::IncrementUpdateCounter();
 
             // Restore wallet transaction metadata after -zapwallettxes=1
             if (GetBoolArg("-zapwallettxes", false) && GetArg("-zapwallettxes", "1") != "2") {
+                CWalletDB walletdb(strWalletFile);
                 for (const CWalletTx& wtxOld : vWtx) {
                     uint256 hash = wtxOld.GetHash();
                     std::map<uint256, CWalletTx>::iterator mi = pwalletMain->mapWallet.find(hash);
@@ -1692,7 +1735,7 @@ bool AppInit2(bool isDaemon)
                         copyTo->fFromMe = copyFrom->fFromMe;
                         copyTo->strFromAccount = copyFrom->strFromAccount;
                         copyTo->nOrderPos = copyFrom->nOrderPos;
-                        copyTo->WriteToDisk();
+                        copyTo->WriteToDisk(&walletdb);
                     }
                 }
             }
@@ -1931,10 +1974,11 @@ bool AppInit2(bool isDaemon)
     if (pwalletMain) {
         // Add wallet transactions that aren't already in a block to mapTransactions
         pwalletMain->ReacceptWalletTransactions();
-        pwalletMain->fCombineDust = GetBoolArg("-combinedust", true);
         // Run a thread to flush wallet periodically
         threadGroup.create_thread(boost::bind(&ThreadFlushWalletDB, boost::ref(pwalletMain->strWalletFile)));
 		
+        // Check if there is a combinedust setting in the .conf file
+        pwalletMain->fCombineDust = GetBoolArg("-combinedust", true);
         if (pwalletMain->fCombineDust){
             LogPrintf("Autocombinedust is enabled\n");
         } else {
@@ -1961,12 +2005,11 @@ bool AppInit2(bool isDaemon)
         }
         //read decoy confirmation min
         pwalletMain->DecoyConfirmationMinimum = GetArg("-decoyconfirm", 15);
+        CWalletDB walletdb(strWalletFile);
+        double reserveBalance;
+        if (walletdb.ReadReserveAmount(reserveBalance))
+            nReserveBalance = reserveBalance * COIN;
     }
-
-    CWalletDB walletdb(strWalletFile);
-    double reserveBalance;
-    if (walletdb.ReadReserveAmount(reserveBalance))
-        nReserveBalance = reserveBalance * COIN;
 #endif
 
     return !fRequestShutdown;

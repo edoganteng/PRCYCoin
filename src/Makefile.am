@@ -93,6 +93,7 @@ BITCOIN_CORE_H = \
   ecdhutil.h \
   hdchain.h \
   bloom.h \
+  blocksignature.h \
   chain.h \
   chainparams.h \
   chainparamsbase.h \
@@ -108,6 +109,7 @@ BITCOIN_CORE_H = \
   compat/sanity.h \
   compressor.h \
   consensus/consensus.h \
+  consensus/merkle.h \
   consensus/validation.h \
   consensus/tx_verify.h \
   primitives/block.h \
@@ -124,6 +126,7 @@ BITCOIN_CORE_H = \
   httpserver.h \
   init.h \
   invalid.h \
+  invalid_outpoints.json.h \
   kernel.h \
   swifttx.h \
   key.h \
@@ -146,6 +149,7 @@ BITCOIN_CORE_H = \
   netaddress.h \
   netbase.h \
   noui.h \
+  optional.h \
   poa.h \
   prevector.h \
   protocol.h \
@@ -164,6 +168,7 @@ BITCOIN_CORE_H = \
   script/standard.h \
   script/script_error.h \
   serialize.h \
+  stakeinput.h \
   streams.h \
   support/cleanse.h \
   sync.h \
@@ -207,6 +212,7 @@ libbitcoin_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_server_a_SOURCES = \
   addrman.cpp \
   bloom.cpp \
+  blocksignature.cpp \
   chain.cpp \
   checkpoints.cpp \
   consensus/tx_verify.cpp \
@@ -246,7 +252,7 @@ libbitcoin_zmq_a_SOURCES = \
   zmq/zmqpublishnotifier.cpp
 endif
 
-libbitcoin_zxcvbn_a_CPPFLAGS = $(BITCOIN_INCLUDES)
+libbitcoin_zxcvbn_a_CPPFLAGS = $(BITCOIN_INCLUDES) $(PIE_FLAGS)
 libbitcoin_zxcvbn_a_CXXFLAGS = $(AM_CXXFLAGS)
 libbitcoin_zxcvbn_a_SOURCES = \
   zxcvbn/_frequency_lists.cpp \
@@ -293,10 +299,12 @@ libbitcoin_wallet_a_SOURCES = \
   messagesigner.cpp \
   wallet/rpcdump.cpp \
   wallet/rpcwallet.cpp \
+  invalid.cpp \
   kernel.cpp \
   wallet/wallet.cpp \
   wallet/wallet_ismine.cpp \
   wallet/walletdb.cpp \
+  stakeinput.cpp \
   $(BITCOIN_CORE_H)
 
 # crypto primitives library
@@ -352,6 +360,7 @@ libbitcoin_common_a_SOURCES = \
   chainparams.cpp \
   coins.cpp \
   compressor.cpp \
+  consensus/merkle.cpp \
   primitives/block.cpp \
   primitives/transaction.cpp \
   core_read.cpp \
@@ -521,10 +530,16 @@ CLEANFILES = $(EXTRA_LIBRARIES)
 
 CLEANFILES += *.gcda *.gcno
 CLEANFILES += compat/*.gcda compat/*.gcno
+CLEANFILES += consensus/*.gcda consensus/*.gcno
+CLEANFILES += crc32c/src/*.gcda crc32c/src/*.gcno
 CLEANFILES += crypto/*.gcda crypto/*.gcno
 CLEANFILES += primitives/*.gcda primitives/*.gcno
+CLEANFILES += rpc/*.gcda rpc/*.gcno
 CLEANFILES += script/*.gcda script/*.gcno
+CLEANFILES += support/*.gcda support/*.gcno
 CLEANFILES += univalue/*.gcda univalue/*.gcno
+CLEANFILES += wallet/*.gcda wallet/*.gcno
+CLEANFILES += wallet/test/*.gcda wallet/test/*.gcno
 CLEANFILES += zmq/*.gcda zmq/*.gcno
 CLEANFILES += obj/build.h
 

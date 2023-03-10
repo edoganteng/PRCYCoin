@@ -22,9 +22,6 @@
 
 
 
-unsigned int nWalletDBUpdated;
-
-
 //
 // CDB
 //
@@ -87,7 +84,7 @@ bool CDBEnv::Open(const fs::path& pathIn)
         nEnvFlags |= DB_PRIVATE;
 
     dbenv->set_lg_dir(pathLogDir.string().c_str());
-    dbenv->set_cachesize(0, 0x100000, 1); // 1 MiB should be enough for just the wallet
+    dbenv->set_cachesize(1, 0x100000, 1); // 1 MiB should be enough for just the wallet, Increased by 1 GB
     dbenv->set_lg_bsize(0x10000);
     dbenv->set_lg_max(1048576);
     dbenv->set_lk_max_locks(40000);
@@ -165,6 +162,55 @@ CDBEnv::VerifyResult CDBEnv::Verify(std::string strFile, bool (*recoverFunc)(CDB
     return (fRecovered ? RECOVER_OK : RECOVER_FAIL);
 }
 
+bool CDBEnv::Compact(const std::string& strFile)
+{
+    LOCK(cs_db);
+
+    DB_COMPACT dbcompact;
+    dbcompact.compact_fillpercent = 80;
+    dbcompact.compact_pages = DB_MAX_PAGES;
+    dbcompact.compact_timeout = 0;
+
+    DB_COMPACT *pdbcompact;
+    pdbcompact = &dbcompact;
+
+    int result = 1;
+    if (mapDb[strFile] != NULL) {
+        Db* pdb = mapDb[strFile];
+        result = pdb->compact(NULL, NULL, NULL, pdbcompact, DB_FREE_SPACE, NULL);
+        delete pdb;
+        mapDb[strFile] = NULL;
+
+      switch (result)
+      {
+        case DB_LOCK_DEADLOCK:
+          LogPrint(BCLog::DB,"Deadlock %i\n", result);
+          break;
+        case DB_LOCK_NOTGRANTED:
+          LogPrint(BCLog::DB,"Lock Not Granted %i\n", result);
+          break;
+        case DB_REP_HANDLE_DEAD:
+          LogPrint(BCLog::DB,"Handle Dead %i\n", result);
+          break;
+        case DB_REP_LOCKOUT:
+          LogPrint(BCLog::DB,"Rep Lockout %i\n", result);
+          break;
+        case EACCES:
+          LogPrint(BCLog::DB,"Eacces %i\n", result);
+          break;
+        case EINVAL:
+          LogPrint(BCLog::DB,"Error Invalid %i\n", result);
+          break;
+        case 0:
+          LogPrint(BCLog::DB,"Wallet Compact Sucessful\n");
+          break;
+        default:
+          LogPrint(BCLog::DB,"Compact result int %i\n", result);
+      }
+    }
+    return (result == 0);
+}
+
 bool CDBEnv::Salvage(std::string strFile, bool fAggressive, std::vector<CDBEnv::KeyValPair>& vResult)
 {
     LOCK(cs_db);
@@ -224,10 +270,11 @@ void CDBEnv::CheckpointLSN(const std::string& strFile)
 }
 
 
-CDB::CDB(const std::string& strFilename, const char* pszMode) : pdb(NULL), activeTxn(NULL)
+CDB::CDB(const std::string& strFilename, const char* pszMode, bool fFlushOnCloseIn) : pdb(NULL), activeTxn(NULL)
 {
     int ret;
     fReadOnly = (!strchr(pszMode, '+') && !strchr(pszMode, 'w'));
+    fFlushOnClose = fFlushOnCloseIn;
     if (strFilename.empty())
         return;
 
@@ -305,7 +352,8 @@ void CDB::Close()
     activeTxn = NULL;
     pdb = NULL;
 
-    Flush();
+    if (fFlushOnClose)
+        Flush();
 
     {
         LOCK(bitdb.cs_db);

@@ -186,7 +186,7 @@ BitcoinGUI::BitcoinGUI(const NetworkStyle* networkStyle, QWidget* parent) : QMai
     frameBlocksLayout->setSpacing(3);
     unitDisplayControl = new UnitDisplayStatusBarControl();
     labelStakingIcon = new QLabel();
-    labelEncryptionIcon = new QPushButton(this);
+    labelEncryptionIcon = new QPushButton();
     labelEncryptionIcon->setFlat(true); // Make the button look like a label, but clickable
     labelEncryptionIcon->setStyleSheet(".QPushButton { background-color: rgba(255, 255, 255, 0);}");
     labelEncryptionIcon->setMaximumSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE);
@@ -375,16 +375,19 @@ void BitcoinGUI::createActions(const NetworkStyle* networkStyle)
 #endif
     tabGroup->addAction(optionsAction);
 
-    stakingAction = new QAction(QIcon(":/icons/options"), tr("&Staking"), this);
-    stakingAction->setText(tr("Staking Status"));
-    stakingAction->setIconText("   Staking Status");
-    stakingAction->setMenuRole(QAction::NoRole);
-    stakingState = new QLabel(this);
-    stakingState->setObjectName("stakingState");
-    networkAction = new QAction(QIcon(":/icons/options"), tr("&Network"), this);
-    networkAction->setMenuRole(QAction::NoRole);
-    networkAction->setText("Network Status");
-    networkAction->setIconText("   Network Status");
+    if (walletFrame) {
+        stakingAction = new QAction(QIcon(":/icons/options"), tr("&Staking"), this);
+        stakingAction->setText(tr("Staking Status"));
+        stakingAction->setIconText("   Staking Status");
+        stakingAction->setMenuRole(QAction::NoRole);
+        stakingState = new QLabel(this);
+        stakingState->setObjectName("stakingState");
+
+        networkAction = new QAction(QIcon(":/icons/options"), tr("&Network"), this);
+        networkAction->setMenuRole(QAction::NoRole);
+        networkAction->setText("Network Status");
+        networkAction->setIconText("   Network Status");
+    }
     connectionCount = new QLabel(this);
     connectionCount->setObjectName("connectionCount");
     blockCount = new QLabel(this);
@@ -398,6 +401,8 @@ void BitcoinGUI::createActions(const NetworkStyle* networkStyle)
     encryptWalletAction->setCheckable(true);
     backupWalletAction = new QAction(QIcon(":/icons/filesave"), tr("&Backup Wallet..."), this);
     backupWalletAction->setStatusTip(tr("Backup wallet to another location"));
+    showSeedAction = new QAction(QIcon(":/icons/seedphrase"), tr("&Show Seed Phrase"), this);
+    showSeedAction->setStatusTip(tr("Show 24 word wallet seed phrase"));
     changePassphraseAction = new QAction(QIcon(":/icons/key"), tr("&Change Passphrase..."), this);
     changePassphraseAction->setStatusTip(tr("Change the passphrase used for wallet encryption"));
     unlockWalletAction = new QAction(tr("&Unlock Wallet..."), this);
@@ -479,8 +484,8 @@ void BitcoinGUI::createActions(const NetworkStyle* networkStyle)
     openBridgeAction->setStatusTip(tr("Bridge Link"));
     openDexAction = new QAction(QApplication::style()->standardIcon(QStyle::SP_MessageBoxInformation), tr("&PRivaCY DEX"), this);
     openDexAction->setStatusTip(tr("PRivaCY Dex Link"));
-    openCheckerAction = new QAction(QApplication::style()->standardIcon(QStyle::SP_MessageBoxInformation), tr("&PRCY Checker"), this);
-    openCheckerAction->setStatusTip(tr("PRCY Checker Link"));
+    openToolkitAction = new QAction(QApplication::style()->standardIcon(QStyle::SP_MessageBoxInformation), tr("&PRCY Toolkit"), this);
+    openToolkitAction->setStatusTip(tr("PRCY Toolkit Link"));
     openTGTechSupportAction = new QAction(QIcon(":/icons/telegram"), tr("&Telegram Tech Support"), this);
     openTGTechSupportAction->setStatusTip(tr("Telegram Tech Support"));
     openTGMNSupportAction = new QAction(QIcon(":/icons/telegram"), tr("&Telegram Masternode Support"), this);
@@ -502,7 +507,7 @@ void BitcoinGUI::createActions(const NetworkStyle* networkStyle)
     connect(openBootStrapAction, SIGNAL(triggered()), this, SLOT(openBootStrapClicked()));
     connect(openBridgeAction, SIGNAL(triggered()), this, SLOT(openBridgeClicked()));
     connect(openDexAction, SIGNAL(triggered()), this, SLOT(openDexClicked()));
-    connect(openCheckerAction, SIGNAL(triggered()), this, SLOT(openCheckerClicked()));
+    connect(openToolkitAction, SIGNAL(triggered()), this, SLOT(openToolkitClicked()));
     connect(openTGTechSupportAction, SIGNAL(triggered()), this, SLOT(openTGTechSupportClicked()));
     connect(openTGMNSupportAction, SIGNAL(triggered()), this, SLOT(openTGMNSupportClicked()));
     connect(openDiscordSupportAction, SIGNAL(triggered()), this, SLOT(openDiscordSupportClicked()));
@@ -511,6 +516,7 @@ void BitcoinGUI::createActions(const NetworkStyle* networkStyle)
     if (walletFrame) {
         connect(encryptWalletAction, SIGNAL(triggered(bool)), walletFrame, SLOT(encryptWallet(bool)));
         connect(backupWalletAction, SIGNAL(triggered()), walletFrame, SLOT(backupWallet()));
+        connect(showSeedAction, SIGNAL(triggered()), this, SLOT(showSeedPhrase()));
         connect(changePassphraseAction, SIGNAL(triggered()), walletFrame, SLOT(changePassphrase()));
         connect(unlockWalletAction, SIGNAL(triggered(bool)), walletFrame, SLOT(unlockWallet(bool)));
         connect(lockWalletAction, SIGNAL(triggered()), walletFrame, SLOT(lockWallet()));
@@ -547,6 +553,7 @@ void BitcoinGUI::createMenuBar()
         //file->addAction(openAction);
         file->addAction(backupWalletAction);
         file->addSeparator();
+        file->addAction(showSeedAction);
         //file->addAction(usedSendingAddressesAction);
         //file->addAction(usedReceivingAddressesAction);
         //file->addSeparator();
@@ -605,7 +612,7 @@ void BitcoinGUI::createMenuBar()
     help->addAction(openBootStrapAction);
     help->addAction(openBridgeAction);
     help->addAction(openDexAction);
-    help->addAction(openCheckerAction);
+    help->addAction(openToolkitAction);
     help->addSeparator();
     help->addAction(openTGTechSupportAction);
     //help->addAction(openTGMNSupportAction);
@@ -773,6 +780,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     masternodeAction->setEnabled(enabled);
     encryptWalletAction->setEnabled(enabled);
     backupWalletAction->setEnabled(enabled);
+    showSeedAction->setEnabled(enabled);
     changePassphraseAction->setEnabled(enabled);
     usedSendingAddressesAction->setEnabled(enabled);
     usedReceivingAddressesAction->setEnabled(enabled);
@@ -954,7 +962,7 @@ void BitcoinGUI::openTGMNSupportClicked()
 
 void BitcoinGUI::openDiscordSupportClicked()
 {
-    QDesktopServices::openUrl(QUrl("https://discord.gg/8vbXJMf"));
+    QDesktopServices::openUrl(QUrl("https://discord.prcycoin.com"));
 }
 
 void BitcoinGUI::openBridgeClicked()
@@ -967,9 +975,9 @@ void BitcoinGUI::openDexClicked()
     QDesktopServices::openUrl(QUrl("https://privacydex.io"));
 }
 
-void BitcoinGUI::openCheckerClicked()
+void BitcoinGUI::openToolkitClicked()
 {
-    QDesktopServices::openUrl(QUrl("https://prcycoin.com/prcy-checker"));
+    QDesktopServices::openUrl(QUrl("https://toolkit.prcycoin.com"));
 }
 
 void BitcoinGUI::checkForUpdatesClicked()
@@ -1089,6 +1097,10 @@ void BitcoinGUI::gotoBlockExplorerPage()
     if (walletFrame) walletFrame->gotoBlockExplorerPage();
 }
 
+void BitcoinGUI::showSeedPhrase()
+{
+    if (walletFrame) walletFrame->showSeedPhrase();
+}
 #endif // ENABLE_WALLET
 
 void BitcoinGUI::setNumConnections(int count)
@@ -1118,11 +1130,13 @@ void BitcoinGUI::setNumConnections(int count)
         break;
     }
 
-    connectionCount->setText(tr("%n Active Connections", "", count));
-    if (count < 1)
-        networkAction->setIcon(QIcon(":icons/staking_disabled"));
-    else
-        networkAction->setIcon(QIcon(":icons/staking_active"));
+    if (walletFrame) {
+        connectionCount->setText(tr("%n Active Connections", "", count));
+        if (count < 1)
+            networkAction->setIcon(QIcon(":icons/staking_disabled"));
+        else
+            networkAction->setIcon(QIcon(":icons/staking_active"));
+    }
 }
 
 void BitcoinGUI::setNumBlocks(int count)
@@ -1203,14 +1217,16 @@ void BitcoinGUI::setNumBlocks(int count)
         tooltip += QString("<br>");
         tooltip += tr("Transactions after this will not yet be visible.");
     }
-    if (count == 0) {
-        blockCount->setText(tr("Loading Blocks..."));
-    } else if (clientModel->inInitialBlockDownload()) {
-        blockCount->setText(tr("Syncing Blocks..."));
-    } else {
-        blockCount->setText(tr("%n Blocks", "", count));
+    if (walletFrame) {
+        if (count == 0) {
+            blockCount->setText(tr("Loading Blocks..."));
+        } else if (clientModel->inInitialBlockDownload()) {
+            blockCount->setText(tr("Syncing Blocks..."));
+        } else {
+            blockCount->setText(tr("%n Blocks", "", count));
+        }
+        blockCount->setToolTip(tooltip);
     }
-    blockCount->setToolTip(tooltip);
 }
 
 void BitcoinGUI::message(const QString& title, const QString& message, unsigned int style, bool* ret)
@@ -1347,69 +1363,59 @@ void BitcoinGUI::dropEvent(QDropEvent* event)
 
 void BitcoinGUI::setStakingStatus()
 {
-    bool stkStatus = false;
-    if (pwalletMain) {
-        fMultiSend = pwalletMain->isMultiSendEnabled();
-        stkStatus = pwalletMain->ReadStakingStatus();
-    }
-    if (!stkStatus || pwalletMain->IsLocked()) {
-        LogPrint(BCLog::STAKING,"Checking Staking Status: Disabled.\n");
-        stakingState->setText(tr("Staking Disabled"));
-        stakingState->setToolTip("Staking Disabled");
-        stakingAction->setIcon(QIcon(":/icons/staking_inactive"));
-        return;
-    }
-    if (vNodes.empty()) {
-        LogPrint(BCLog::STAKING,"Checking Staking Status: No Active Peers...\n");
-        stakingState->setText(tr("No Active Peers"));
-        stakingState->setToolTip("No Active Peers");
-        stakingAction->setIcon(QIcon(":/icons/staking_inactive"));
-        return;
-    }
-    if (clientModel->inInitialBlockDownload()) {
-        LogPrint(BCLog::STAKING,"Checking Staking Status: Syncing...\n");
-        stakingState->setText(tr("Syncing Blocks..."));
-        stakingState->setToolTip("Syncing Blocks");
-        stakingAction->setIcon(QIcon(":/icons/staking_waiting"));
-        return;
-    }
-    if (!masternodeSync.IsSynced()) {
-        LogPrint(BCLog::STAKING,"Checking Staking Status: Syncing MN List...\n");
-        stakingState->setText(tr("Syncing MN List..."));
-        stakingState->setToolTip("Syncing Masternode List");
-        stakingAction->setIcon(QIcon(":/icons/staking_waiting"));
-        return;
-    }
-    if (stakingState->text().contains("Enabling")) {
-        if (!nLastCoinStakeSearchInterval) return;
-    }
-    if (nLastCoinStakeSearchInterval) {
+    if (walletFrame) {
+        bool stkStatus = false;
+        if (pwalletMain) {
+            fMultiSend = pwalletMain->isMultiSendEnabled();
+            stkStatus = pwalletMain->ReadStakingStatus();
+        }
+        if (!stkStatus || pwalletMain->IsLocked()) {
+            LogPrint(BCLog::STAKING,"Checking Staking Status: Disabled.\n");
+            stakingState->setText(tr("Staking Disabled"));
+            stakingState->setToolTip("Staking Disabled");
+            stakingAction->setIcon(QIcon(":/icons/staking_inactive"));
+            return;
+        }
+        if (vNodes.empty()) {
+            LogPrint(BCLog::STAKING,"Checking Staking Status: No Active Peers...\n");
+            stakingState->setText(tr("No Active Peers"));
+            stakingState->setToolTip("No Active Peers");
+            stakingAction->setIcon(QIcon(":/icons/staking_inactive"));
+            return;
+        }
+        if (clientModel->inInitialBlockDownload()) {
+            LogPrint(BCLog::STAKING,"Checking Staking Status: Syncing...\n");
+            stakingState->setText(tr("Syncing Blocks..."));
+            stakingState->setToolTip("Syncing Blocks");
+            stakingAction->setIcon(QIcon(":/icons/staking_waiting"));
+            return;
+        }
+        if (!masternodeSync.IsSynced()) {
+            LogPrint(BCLog::STAKING,"Checking Staking Status: Syncing MN List...\n");
+            stakingState->setText(tr("Syncing MN List..."));
+            stakingState->setToolTip("Syncing Masternode List");
+            stakingAction->setIcon(QIcon(":/icons/staking_waiting"));
+            return;
+        }
         LogPrint(BCLog::STAKING,"Checking Staking Status: Enabled.\n");
         stakingState->setText(tr("Staking Enabled"));
         stakingState->setToolTip("Staking Enabled");
         stakingAction->setIcon(QIcon(":/icons/staking_active"));
-    /*} else if (nConsolidationTime > 0) {
-        nConsolidationTime --;
-        stakingState->setText(tr("Consolidating Transactions…"));
-        stakingState->setToolTip("Consolidating Transactions… Please wait few minutes for it to be consolidated.");
-        stakingAction->setIcon(QIcon(":/icons/staking_active"));*/
-    } else {
-        LogPrint(BCLog::STAKING,"Checking Staking Status: Enabling...\n");
-        stakingState->setText(tr("Enabling Staking..."));
-        stakingState->setToolTip("Enabling Staking... Please wait up to 1.5 hours for it to be properly enabled after consolidation.");
-        stakingAction->setIcon(QIcon(":/icons/staking_active"));
     }
 }
+
 void BitcoinGUI::setStakingInProgress(bool inProgress)
 {
-    if (inProgress) {
-        stakingState->setText(tr("Enabling Staking..."));
-        stakingState->setToolTip("Enabling Staking... Please wait up to 1.5 hours for it to be properly enabled after consolidation.");
-        stakingAction->setIcon(QIcon(":/icons/staking_active"));
-    } else {
-        stakingState->setText(tr("Disabling Staking..."));
-        stakingState->setToolTip("Disabling Staking...");
-        stakingAction->setIcon(QIcon(":/icons/staking_inactive"));
+    if (walletFrame) {
+        if (inProgress) {
+            stakingState->setText(tr("Enabling Staking..."));
+            stakingState->setToolTip("Enabling Staking... Please wait up to 1.5 hours for it to be properly enabled after consolidation.");
+            stakingAction->setIcon(QIcon(":/icons/staking_active"));
+        } else {
+            stakingState->setText(tr("Disabling Staking..."));
+            stakingState->setToolTip("Disabling Staking...");
+            stakingAction->setIcon(QIcon(":/icons/staking_inactive"));
+        }
     }
 }
 

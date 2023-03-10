@@ -69,6 +69,11 @@ WalletModel::~WalletModel()
     unsubscribeFromCoreSignals();
 }
 
+CAmount WalletModel::getMinStakingAmount() const
+{
+    return Params().MinimumStakeAmount();
+}
+
 CAmount WalletModel::getBalance(const CCoinControl* coinControl) const
 {
     if (coinControl) {
@@ -187,16 +192,12 @@ void WalletModel::emitBalanceChanged()
 
 bool WalletModel::checkBalanceChanged()
 {
-    TRY_LOCK(cs_main, lockMain);
-    if (!lockMain) return false;
-    TRY_LOCK(pwalletMain->cs_wallet, lockWallet);
-    if (!lockWallet) return false;
     CAmount newBalance = getBalance();
     CAmount newUnconfirmedBalance = getUnconfirmedBalance();
     CAmount newImmatureBalance = getImmatureBalance();
     CAmount newSpendableBalance = newBalance - newImmatureBalance;
     static bool stkEnabled = false;
-    static bool walletLocked = pwalletMain->IsLocked();
+    static bool walletLocked = wallet->IsLocked();
     CAmount newWatchOnlyBalance = 0;
     CAmount newWatchUnconfBalance = 0;
     CAmount newWatchImmatureBalance = 0;
@@ -206,7 +207,7 @@ bool WalletModel::checkBalanceChanged()
         newWatchImmatureBalance = getWatchImmatureBalance();
     }
 
-    if (walletLocked != pwalletMain->IsLocked() || 
+    if (walletLocked != wallet->IsLocked() ||
         (stkEnabled != (nLastCoinStakeSearchInterval > 0)) || 
         newSpendableBalance != spendableBalance || 
         cachedBalance != newBalance || 
@@ -225,7 +226,7 @@ bool WalletModel::checkBalanceChanged()
         cachedWatchUnconfBalance = newWatchUnconfBalance;
         cachedWatchImmatureBalance = newWatchImmatureBalance;
         stkEnabled = (nLastCoinStakeSearchInterval > 0);
-        walletLocked = pwalletMain->IsLocked();
+        walletLocked = wallet->IsLocked();
         Q_EMIT balanceChanged(newBalance, newUnconfirmedBalance, newImmatureBalance,
             newWatchOnlyBalance, newWatchUnconfBalance, newWatchImmatureBalance);
         return true;
@@ -275,8 +276,8 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
         return OK;
     }
 
-    if (isAnonymizeOnlyUnlocked()) {
-        return AnonymizeOnlyUnlocked;
+    if (isStakingOnlyUnlocked()) {
+        return StakingOnlyUnlocked;
     }
 
     QSet<QString> setAddress; // Used to detect duplicates
@@ -408,7 +409,7 @@ bool WalletModel::setWalletEncrypted(bool encrypted, const SecureString& passphr
     }
 }
 
-bool WalletModel::setWalletLocked(bool locked, const SecureString& passPhrase, bool anonymizeOnly)
+bool WalletModel::setWalletLocked(bool locked, const SecureString& passPhrase, bool stakingOnly)
 {
     if (locked) {
         // Lock
@@ -416,7 +417,7 @@ bool WalletModel::setWalletLocked(bool locked, const SecureString& passPhrase, b
         return wallet->Lock();
     } else {
         // Unlock
-        return wallet->Unlock(passPhrase, anonymizeOnly);
+        return wallet->Unlock(passPhrase, stakingOnly);
     }
 }
 
@@ -431,7 +432,7 @@ bool WalletModel::lockForStakingOnly(const SecureString& passPhrase)
     return false;
 }
 
-bool WalletModel::isAnonymizeOnlyUnlocked()
+bool WalletModel::isStakingOnlyUnlocked()
 {
     return wallet->fWalletUnlockStakingOnly;
 }
@@ -561,7 +562,7 @@ WalletModel::UnlockContext WalletModel::requestUnlock(AskPassphraseDialog::Conte
 {
     bool was_locked = getEncryptionStatus() == Locked;
 
-    if (!was_locked && isAnonymizeOnlyUnlocked()) {
+    if (!was_locked && isStakingOnlyUnlocked()) {
         setWalletLocked(true);
         wallet->fWalletUnlockStakingOnly = false;
         was_locked = getEncryptionStatus() == Locked;
@@ -600,6 +601,11 @@ void WalletModel::UnlockContext::CopyFrom(const UnlockContext& rhs)
 bool WalletModel::getPubKey(const CKeyID& address, CPubKey& vchPubKeyOut) const
 {
     return wallet->GetPubKey(address, vchPubKeyOut);
+}
+
+bool WalletModel::getSeedPhrase(std::string &phrase) const
+{
+    return wallet->GetSeedPhrase(phrase);
 }
 
 // returns a list of COutputs from COutPoints
@@ -712,21 +718,22 @@ bool WalletModel::isMine(CBitcoinAddress address)
 StakingStatusError WalletModel::getStakingStatusError(QString& error)
 {
     /* {
-        bool fMintable = pwalletMain->MintableCoins();
-        CAmount balance = pwalletMain->GetSpendableBalance();
+        bool fMintable = wallet->MintableCoins();
+        CAmount balance = wallet->GetSpendableBalance();
+        const CAmount minStakingAmount = Params().MinimumStakeAmount();
         if (!fMintable || nReserveBalance > balance) {
-            if (balance < Params().MinimumStakeAmount()) {
-                error = "\nBalance is under the minimum 400,000 staking threshold.\nPlease send more PRCY to this wallet.\n";
+            if (balance < minStakingAmount) {
+                error = "\nBalance is under the minimum 2,5000 staking threshold.\nPlease send more PRCY to this wallet.\n";
                 return StakingStatusError::STAKING_OK;
             }
-            if (nReserveBalance > balance || (balance > nReserveBalance && balance - nReserveBalance < Params().MinimumStakeAmount())) {
+            if (nReserveBalance > balance || (balance > nReserveBalance && balance - nReserveBalance < minStakingAmount)) {
                 error = "Reserve balance is too high.\nPlease lower it in order to turn staking on.";
                 return StakingStatusError::RESERVE_TOO_HIGH;
             }
             if (!fMintable) {
-                if (balance > Params().MinimumStakeAmount()) {
-                    //10 is to cover transaction fees
-                    if (balance >= Params().MinimumStakeAmount() + 10*COIN) {
+                if (balance > minStakingAmount) {
+                    //1 is to cover transaction fees
+                    if (balance >= minStakingAmount + 1*COIN) {
                         error = "Not enough mintable coins.\nDo you want to merge & make a sent-to-yourself transaction to make the wallet stakable?";
                         return StakingStatusError::UTXO_UNDER_THRESHOLD;
                     }
@@ -739,11 +746,11 @@ StakingStatusError WalletModel::getStakingStatusError(QString& error)
 
 void WalletModel::generateCoins(bool fGenerate, int nGenProcLimit)
 {
-    GeneratePrcycoins(fGenerate, pwalletMain, nGenProcLimit);
+    GeneratePrcycoins(fGenerate, wallet, nGenProcLimit);
     if (false /*if regtest*/ && fGenerate) {
         //regtest generate
     } else {
-        GeneratePrcycoins(fGenerate, pwalletMain, nGenProcLimit);
+        GeneratePrcycoins(fGenerate, wallet, nGenProcLimit);
     }
 }
 
@@ -795,7 +802,7 @@ std::map<QString, QString> getTx(CWallet* wallet, CWalletTx tx)
                     if (wallet->IsMine(prev.vout[prevout.n])) {
                         CAmount decodedAmount = 0;
                         CKey blind;
-                        pwalletMain->RevealTxOutAmount(prev, prev.vout[prevout.n], decodedAmount, blind);
+                        wallet->RevealTxOutAmount(prev, prev.vout[prevout.n], decodedAmount, blind);
                         totalIn += decodedAmount;
                     }
                 }
@@ -888,7 +895,7 @@ std::map<QString, QString> getTx(CWallet* wallet, CWalletTx tx)
 
 QList<QString> getAddressBookData(CWallet* wallet)
 {
-    std::map<CTxDestination, CAddressBookData> mapAddressBook = pwalletMain->mapAddressBook;
+    std::map<CTxDestination, CAddressBookData> mapAddressBook = wallet->mapAddressBook;
     QList<QString> AddressBookData;
     for (std::map<CTxDestination, CAddressBookData>::iterator address = mapAddressBook.begin(); address != mapAddressBook.end(); ++address) {
         QString desc = address->second.name.c_str();

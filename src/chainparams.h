@@ -61,6 +61,7 @@ public:
     int RejectBlockOutdatedMajority() const { return nRejectBlockOutdatedMajority; }
     int ToCheckBlockUpgradeMajority() const { return nToCheckBlockUpgradeMajority; }
     int MaxReorganizationDepth() const { return nMaxReorganizationDepth; }
+    int StakeMinAge() const { return nStakeMinAge; }
 
     /** Used if GeneratePrcycoins is called with a negative number of threads */
     int DefaultMinerThreads() const { return nMinerThreads; }
@@ -118,6 +119,8 @@ public:
     int HardFork() const { return nHardForkBlock;}
     int HardForkRingSize() const { return nHardForkBlockRingSize;}
     int HardForkRingSize2() const { return nHardForkBlockRingSize2;}
+    int SyncFix() const { return nSyncFix;}
+    int FixChecks() const { return nFixChecks;}
 
     //For PoA block time
     int POA_BLOCK_TIME() const { return nPoABlockTime; }
@@ -137,6 +140,7 @@ protected:
     int nStealthPrefix;
     int nIntegratedPrefix;
     uint256 bnProofOfWorkLimit;
+    int nStakeMinAge;
     mutable int nMaxReorganizationDepth;
     int nSubsidyHalvingInterval;
     int nEnforceBlockUpgradeMajority;
@@ -149,6 +153,8 @@ protected:
     int nHardForkBlock;
     int nHardForkBlockRingSize;
     int nHardForkBlockRingSize2;
+    int nSyncFix;
+    int nFixChecks;
     int nPoANewDiff;
     int nPoAFixTime;
     int nPoAPaddingBlock;
