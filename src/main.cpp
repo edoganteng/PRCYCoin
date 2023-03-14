@@ -4901,16 +4901,9 @@ bool ProcessNewBlock(CValidationState& state, CNode* pfrom, CBlock* pblock, CDis
     if (pblock->GetHash() != Params().HashGenesisBlock() && pfrom != NULL) {
         //if we get this far, check if the prev block is our prev block, if not then request sync and return false
         BlockMap::iterator mi = mapBlockIndex.find(pblock->hashPrevBlock);
-        if (mi == mapBlockIndex.end() || (mi != mapBlockIndex.end() && mi->second == NULL)) {
-            mapBlockIndex.erase(pblock->hashPrevBlock);
+        if (mi == mapBlockIndex.end()) {
             pfrom->PushMessage(NetMsgType::GETBLOCKS, chainActive.GetLocator(), UINT256_ZERO);
             return false;
-        } else {
-            CBlock r;
-            if (!ReadBlockFromDisk(r, mapBlockIndex[pblock->hashPrevBlock])) {
-                pfrom->PushMessage(NetMsgType::GETBLOCKS, chainActive.GetLocator(), UINT256_ZERO);
-                return false;
-            }
         }
     }
     {
@@ -4929,9 +4922,6 @@ bool ProcessNewBlock(CValidationState& state, CNode* pfrom, CBlock* pblock, CDis
         }
         CheckBlockIndex();
         if (!ret) {
-            if (pfrom) {
-                pfrom->PushMessage(NetMsgType::GETBLOCKS, chainActive.GetLocator(pindexBestForkTip), pblock->GetHash());
-            }
             if (pwalletMain)
             {
                 LOCK(pwalletMain->cs_wallet);
@@ -4975,6 +4965,7 @@ bool ProcessNewBlock(CValidationState& state, CNode* pfrom, CBlock* pblock, CDis
 
     if (!ActivateBestChain(state, pblock, checked))
         return error("%s : ActivateBestChain failed", __func__);
+
     if (!fLiteMode) {
         if (masternodeSync.RequestedMasternodeAssets > MASTERNODE_SYNC_LIST) {
             masternodePayments.ProcessBlock(GetHeight() + 10);
