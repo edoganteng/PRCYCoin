@@ -245,7 +245,7 @@ CAmount GetValueIn(CCoinsViewCache view, const CTransaction& tx)
                 std::vector<unsigned char> commitment;
                 CWallet::CreateCommitment(decodedMask.begin(), nValueIn, commitment);
                 if (commitment != out.commitment) {
-                    throw std::runtime_error("Commitment for coinstake not correct");
+                    return -1;
                 }
                 nResult += nValueIn;
             }
@@ -645,6 +645,9 @@ bool ReVerifyPoSBlock(CBlockIndex* pindex)
         const CTransaction coinstake = block.vtx[1];
         CCoinsViewCache view(pcoinsTip);
         nValueIn = GetValueIn(view, coinstake);
+        if (nValueIn < 0) {
+            return false;
+        }
         nValueOut = coinstake.GetValueOut();
 
         size_t numUTXO = coinstake.vout.size();
@@ -1683,6 +1686,9 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState& state, const CTransa
             // Bring the best block into scope
             view.GetBestBlock();
             nValueIn = GetValueIn(view, tx);
+            if (nValueIn < 0) {
+                return state.DoS(100, error("%s : null commitment in tx %s", __func__, REJECT_INVALID, "bad-txns-null-commitment"));
+            }
 
             // we have all inputs cached now, so switch back to dummy, so we don't need to keep lock on mempool
             view.SetBackend(dummy);
@@ -1909,6 +1915,9 @@ bool AcceptableInputs(CTxMemPool& pool, CValidationState& state, const CTransact
             view.GetBestBlock();
 
             nValueIn = GetValueIn(view, tx);
+            if (nValueIn < 0) {
+                return state.DoS(100, error("%s : null commitment in tx %s", __func__, REJECT_INVALID, "bad-txns-null-commitment"));
+            }
 
             // we have all inputs cached now, so switch back to dummy, so we don't need to keep lock on mempool
             view.SetBackend(dummy);
@@ -3248,6 +3257,9 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
             if (!tx.IsCoinStake())
                 nFees += tx.nTxFee;
             CAmount valTemp = GetValueIn(view, tx);
+            if (nValueIn < 0) {
+                return state.DoS(100, error("%s : null commitment in tx %s", __func__, REJECT_INVALID, "bad-txns-null-commitment"));
+            }
             nValueIn += valTemp;
 
             std::vector<CScriptCheck> vChecks;

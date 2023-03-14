@@ -355,6 +355,9 @@ bool CheckProofOfStake(const CBlock block, uint256& hashProofOfStake, std::uniqu
     CAmount nValueOut;
     CCoinsViewCache view(pcoinsTip);
     nValueIn = GetValueIn(view, tx);
+    if (nValueIn < 0) {
+        return error("%s : null commitment in tx %s", __func__, tx.GetHash().ToString().c_str());
+    }
     nValueOut = tx.GetValueOut();
 
     if (!tx.IsCoinStake())
