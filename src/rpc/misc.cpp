@@ -73,6 +73,27 @@ UniValue getinfo(const UniValue &params, bool fHelp) {
             "\nExamples:\n" +
             HelpExampleCli("getinfo", "") + HelpExampleRpc("getinfo", ""));
     LOCK(cs_main);
+
+#endif
+    std::string services;
+    for (int i = 0; i < 8; i++) {
+        uint64_t check = 1 << i;
+        if (nLocalServices & check) {
+        if (g_connman->GetLocalServices() & check) {
+            switch (check) {
+                case NODE_NETWORK:
+                    services+= "NETWORK/";
+                    break;
+                case NODE_BLOOM:
+                case NODE_BLOOM_WITHOUT_MN:
+                    services+= "BLOOM/";
+                    break;
+                default:
+                    services+= "UNKNOWN/";
+            }
+        }
+    }
+
     proxyType proxy;
     GetProxy(NET_IPV4, proxy);
 
@@ -88,7 +109,8 @@ UniValue getinfo(const UniValue &params, bool fHelp) {
     obj.push_back(Pair("blocks", (int) chainActive.Height()));
     obj.push_back(Pair("synced", masternodeSync.IsBlockchainSynced()));
     obj.push_back(Pair("timeoffset", GetTimeOffset()));
-    obj.push_back(Pair("connections", (int) vNodes.size()));
+    if(g_connman)
+        obj.push_back(Pair("connections", (int)g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL)));
     obj.push_back(Pair("proxy", (proxy.IsValid() ? proxy.proxy.ToStringIPPort() : std::string())));
     obj.push_back(Pair("difficulty", (double) GetDifficulty()));
     obj.push_back(Pair("testnet", Params().TestnetToBeDeprecatedFieldRPC()));
@@ -521,6 +543,13 @@ UniValue setmocktime(const UniValue& params, bool fHelp) {
     RPCTypeCheck(params, boost::assign::list_of(UniValue::VNUM));
     SetMockTime(params[0].get_int64());
 
+    uint64_t t = GetTime();
+    if(g_connman) {
+        g_connman->ForEachNode([t](CNode* pnode) {
+            pnode->nLastSend = pnode->nLastRecv = t;
+        });
+    }
+
     return NullUniValue;
 }
 
@@ -624,7 +653,7 @@ UniValue getstakingstatus(const UniValue& params, bool fHelp)
 
 
     UniValue obj(UniValue::VOBJ);
-    obj.push_back(Pair("haveconnections", !vNodes.empty()));
+    obj.push_back(Pair("haveconnections", (g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL) > 0)));
     if (pwalletMain) {
         obj.push_back(Pair("walletunlocked", !pwalletMain->IsLocked()));
         obj.push_back(Pair("mintablecoins", pwalletMain->MintableCoins()));

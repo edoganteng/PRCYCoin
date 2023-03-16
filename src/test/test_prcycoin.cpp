@@ -20,6 +20,8 @@
 
 #include <boost/test/unit_test.hpp>
 
+std::unique_ptr<CConnman> g_connman;
+
 CClientUIInterface uiInterface;
 
 uint256 insecure_rand_seed = GetRandHash();
@@ -40,6 +42,7 @@ BasicTestingSetup::BasicTestingSetup()
 BasicTestingSetup::~BasicTestingSetup()
 {
         //ECC_Stop();
+        g_connman.reset();
 }
 
 TestingSetup::TestingSetup()
@@ -64,6 +67,8 @@ TestingSetup::TestingSetup()
         nScriptCheckThreads = 3;
         for (int i=0; i < nScriptCheckThreads-1; i++)
             threadGroup.create_thread(&ThreadScriptCheck);
+        g_connman = std::unique_ptr<CConnman>(new CConnman());
+        connman = g_connman.get();
         RegisterNodeSignals(GetNodeSignals());
 }
 

@@ -2103,7 +2103,7 @@ bool CWalletTx::InMempool() const
     return false;
 }
 
-void CWalletTx::RelayWalletTransaction(std::string strCommand)
+void CWalletTx::RelayWalletTransaction(CConnman* connman, std::string strCommand)
 {
     LOCK(cs_main);
     if (!IsCoinBase()) {
@@ -2111,12 +2111,18 @@ void CWalletTx::RelayWalletTransaction(std::string strCommand)
             uint256 hash = GetHash();
             LogPrintf("Relaying wtx %s\n", hash.ToString());
 
+            int invType = MSG_TX;
             if (strCommand == NetMsgType::IX) {
                 mapTxLockReq.insert(std::make_pair(hash, (CTransaction) * this));
                 CreateNewLock(((CTransaction) * this));
-                RelayTransactionLockReq((CTransaction) * this, true);
-            } else {
-                RelayTransaction((CTransaction) * this);
+            invType = MSG_TXLOCK_REQUEST;
+            }
+
+            if (connman) {
+                CInv inv(invType, hash);
+                connman->ForEachNode([&inv](CNode* pnode) {
+                  pnode->PushInventory(inv);
+                });
             }
         }
     }
@@ -2133,7 +2139,7 @@ std::set<uint256> CWalletTx::GetConflicts() const
     return result;
 }
 
-void CWallet::ResendWalletTransactions()
+void CWallet::ResendWalletTransactions(CConnman* connman)
 {
     // Do this infrequently and randomly to avoid giving away
     // that these are our transactions.
@@ -2164,7 +2170,7 @@ void CWallet::ResendWalletTransactions()
         }
         for (PAIRTYPE(const unsigned int, CWalletTx*) & item : mapSorted) {
             CWalletTx& wtx = *item.second;
-            wtx.RelayWalletTransaction();
+            wtx.RelayWalletTransaction(connman);
         }
     }
 }
@@ -4392,7 +4398,7 @@ bool CWallet::CreateCoinStake(
 /**
  * Call after CreateTransaction unless you want to abort
  */
-bool CWallet::CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, std::string strCommand)
+bool CWallet::CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, CConnman* connman, std::string strCommand)
 {
     {
         LOCK2(cs_main, cs_wallet);
@@ -4439,7 +4445,7 @@ bool CWallet::CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, std:
             return false;
         }
         LogPrintf("CommitTransaction() : hash: %s\n", wtxNew.GetHash().GetHex());
-        wtxNew.RelayWalletTransaction(strCommand);
+        wtxNew.RelayWalletTransaction(connman, strCommand);
     }
     return true;
 }
@@ -5662,7 +5668,7 @@ bool CWallet::CreateSweepingTransaction(CAmount target, CAmount threshold, uint3
     return ret;
 }
 
-void CWallet::AutoCombineDust()
+void CWallet::AutoCombineDust(CConnman* connman)
 {
     // QT wallet is always locked at startup, return immediately
     if (IsLocked()) return;

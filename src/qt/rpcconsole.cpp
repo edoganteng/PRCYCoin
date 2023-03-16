@@ -1003,6 +1003,9 @@ void RPCConsole::showBanTableContextMenu(const QPoint& point)
 
 void RPCConsole::disconnectSelectedNode()
 {
+    if(!g_connman)
+        return;
+
     if (!clientModel)
         return;
 
@@ -1016,15 +1019,13 @@ void RPCConsole::disconnectSelectedNode()
 
     const CNodeCombinedStats *stats = clientModel->getPeerTableModel()->getNodeStats(detailNodeRow);
     // Find the node, disconnect it and clear the selected node
-    if (CNode *bannedNode = FindNode(stats->nodeStats.addr.ToString())) {
-        bannedNode->CloseSocketDisconnect();
+    if(g_connman->DisconnectNode(id))
         clearSelectedNode();
-    }
 }
 
 void RPCConsole::banSelectedNode(int bantime)
 {
-    if (!clientModel)
+    if (!clientModel || !g_connman)
         return;
 
     if(cachedNodeid == -1)
@@ -1038,20 +1039,17 @@ void RPCConsole::banSelectedNode(int bantime)
     // Find possible nodes, ban it and clear the selected node
     const CNodeCombinedStats *stats = clientModel->getPeerTableModel()->getNodeStats(detailNodeRow);
 
-    if (FindNode(stats->nodeStats.addr.ToString())) {
-        std::string nStr = stats->nodeStats.addr.ToString();
-        std::string addr;
-        int port = 0;
-        SplitHostPort(nStr, port, addr);
+    std::string nStr = strNode.toStdString();
+    std::string addr;
+    int port = 0;
+    SplitHostPort(nStr, port, addr);
 
-        CNetAddr resolved;
-        if (!LookupHost(addr.c_str(), resolved, false))
-            return;
-        CNode::Ban(resolved, BanReasonManuallyAdded, bantime);
-
-        clearSelectedNode();
-        clientModel->getBanTableModel()->refresh();
-    }
+    CNetAddr resolved;
+    if (!LookupHost(addr.c_str(), resolved, false))
+        return;
+    g_connman->Ban(resolved, BanReasonManuallyAdded, bantime);
+    clearSelectedNode();
+    clientModel->getBanTableModel()->refresh();
 }
 
 void RPCConsole::unbanSelectedNode()
@@ -1059,13 +1057,13 @@ void RPCConsole::unbanSelectedNode()
     if (!clientModel)
         return;
     // Get currently selected ban address
-    QString strNode = GUIUtil::getEntryData(ui->banlistWidget, 0, BanTableModel::Address).toString();
+    NodeId id = GUIUtil::getEntryData(ui->banlistWidget, 0, BanTableModel::NetNodeId).toInt();
     CSubNet possibleSubnet;
 
     LookupSubNet(strNode.toStdString().c_str(), possibleSubnet);
-    if (possibleSubnet.IsValid())
+    if (possibleSubnet.IsValid() && g_connman)
     {
-        CNode::Unban(possibleSubnet);
+        g_connman->Unban(possibleSubnet);
         clientModel->getBanTableModel()->refresh();
     }
 }

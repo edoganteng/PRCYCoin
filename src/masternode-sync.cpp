@@ -216,14 +216,11 @@ void CMasternodeSync::ProcessMessage(CNode* pfrom, std::string& strCommand, CDat
 
 void CMasternodeSync::ClearFulfilledRequest()
 {
-    TRY_LOCK(cs_vNodes, lockRecv);
-    if (!lockRecv) return;
-
-    for (CNode* pnode : vNodes) {
+    g_connman->ForEachNode([](CNode* pnode) {
         pnode->ClearFulfilledRequest("mnsync");
         pnode->ClearFulfilledRequest("mnwsync");
         pnode->ClearFulfilledRequest("busync");
-    }
+    });
 }
 
 void CMasternodeSync::Process()
@@ -256,10 +253,8 @@ void CMasternodeSync::Process()
 
     if (!isRegTestNet && !IsBlockchainSynced()) return;
 
-    TRY_LOCK(cs_vNodes, lockRecv);
-    if (!lockRecv) return;
-
-    for (CNode* pnode : vNodes) {
+    std::vector<CNode*> vNodesCopy = g_connman->CopyNodeVector();
+    for (CNode* pnode : vNodesCopy) {
         if (isRegTestNet) {
             if (RequestedMasternodeAttempt < 4) {
                 mnodeman.DsegUpdate(pnode);
@@ -272,6 +267,7 @@ void CMasternodeSync::Process()
                 RequestedMasternodeAssets = MASTERNODE_SYNC_FINISHED;
             }
             RequestedMasternodeAttempt++;
+            g_connman->ReleaseNodeVector(vNodesCopy);
             return;
         }
 
@@ -280,6 +276,7 @@ void CMasternodeSync::Process()
                 LogPrint(BCLog::MASTERNODE, "CMasternodeSync::Process() - lastMasternodeList %lld (GetTime() - MASTERNODE_SYNC_TIMEOUT) %lld\n", lastMasternodeList, GetTime() - MASTERNODE_SYNC_TIMEOUT);
                 if (lastMasternodeList > 0 && lastMasternodeList < GetTime() - MASTERNODE_SYNC_TIMEOUT * 2 && RequestedMasternodeAttempt >= MASTERNODE_SYNC_THRESHOLD) { //hasn't received a new item in the last five seconds, so we'll move to the
                     GetNextAsset();
+                    g_connman->ReleaseNodeVector(vNodesCopy);
                     return;
                 }
 
@@ -290,6 +287,7 @@ void CMasternodeSync::Process()
                 if (lastMasternodeList == 0 &&
                     (RequestedMasternodeAttempt >= MASTERNODE_SYNC_THRESHOLD * 3 || GetTime() - nAssetSyncStarted > MASTERNODE_SYNC_TIMEOUT * 5)) {
                     GetNextAsset();
+                    g_connman->ReleaseNodeVector(vNodesCopy);
                     return;
                 }
 
@@ -297,12 +295,14 @@ void CMasternodeSync::Process()
 
                 mnodeman.DsegUpdate(pnode);
                 RequestedMasternodeAttempt++;
+                g_connman->ReleaseNodeVector(vNodesCopy);
                 return;
             }
 
             if (RequestedMasternodeAssets == MASTERNODE_SYNC_MNW) {
                 if (lastMasternodeWinner > 0 && lastMasternodeWinner < GetTime() - MASTERNODE_SYNC_TIMEOUT * 2 && RequestedMasternodeAttempt >= MASTERNODE_SYNC_THRESHOLD) { //hasn't received a new item in the last five seconds, so we'll move to the
                     GetNextAsset();
+                    g_connman->ReleaseNodeVector(vNodesCopy);
                     return;
                 }
 
@@ -313,6 +313,7 @@ void CMasternodeSync::Process()
                 if (lastMasternodeWinner == 0 &&
                     (RequestedMasternodeAttempt >= MASTERNODE_SYNC_THRESHOLD * 3 || GetTime() - nAssetSyncStarted > MASTERNODE_SYNC_TIMEOUT * 5)) {
                     GetNextAsset();
+                    g_connman->ReleaseNodeVector(vNodesCopy);
                     return;
                 }
 
@@ -321,6 +322,7 @@ void CMasternodeSync::Process()
                 int nMnCount = mnodeman.CountEnabled();
                 pnode->PushMessage(NetMsgType::GETMNWINNERS, nMnCount); //sync payees
                 RequestedMasternodeAttempt++;
+                g_connman->ReleaseNodeVector(vNodesCopy);
 
                 return;
             }
@@ -337,6 +339,7 @@ void CMasternodeSync::Process()
 
                     // Try to activate our masternode if possible
                     activeMasternode.ManageStatus();
+                    g_connman->ReleaseNodeVector(vNodesCopy);
 
                     return;
                 }
@@ -347,6 +350,7 @@ void CMasternodeSync::Process()
                     // maybe there is no budgets at all, so just finish syncing
                     GetNextAsset();
                     activeMasternode.ManageStatus();
+                    g_connman->ReleaseNodeVector(vNodesCopy);
                     return;
                 }
 
@@ -358,9 +362,10 @@ void CMasternodeSync::Process()
                 uint256 n;
                 pnode->PushMessage(NetMsgType::BUDGETVOTESYNC, n); //sync masternode votes
                 RequestedMasternodeAttempt++;
-
+                g_connman->ReleaseNodeVector(vNodesCopy);
                 return;
             }
         }
     }
+    g_connman->ReleaseNodeVector(vNodesCopy);
 }
