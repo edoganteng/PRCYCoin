@@ -211,6 +211,8 @@ public:
         vSeeds.push_back(CDNSSeedData("seed7.prcycoin.com", "seed7.prcycoin.com"));        // Single node address
         vSeeds.push_back(CDNSSeedData("seed8.prcycoin.com", "seed8.prcycoin.com"));        // Single node address
         vSeeds.push_back(CDNSSeedData("seed9.prcycoin.com", "seed9.prcycoin.com"));        // Single node address
+        vSeeds.push_back(CDNSSeedData("seed10.prcycoin.com", "seed10.prcycoin.com"));      // Single node address
+        vSeeds.push_back(CDNSSeedData("seed11.prcycoin.com", "seed11.prcycoin.com"));      // Single node address
         vSeeds.push_back(CDNSSeedData("vps.prcycoin.com", "vps.prcycoin.com"));            // Single node address
         vSeeds.push_back(CDNSSeedData("vps1.prcycoin.com", "vps1.prcycoin.com"));          // Single node address
         vSeeds.push_back(CDNSSeedData("vps2.prcycoin.com", "vps2.prcycoin.com"));          // Single node address
@@ -221,6 +223,8 @@ public:
         vSeeds.push_back(CDNSSeedData("vps7.prcycoin.com", "vps7.prcycoin.com"));          // Single node address
         vSeeds.push_back(CDNSSeedData("vps8.prcycoin.com", "vps8.prcycoin.com"));          // Single node address
         vSeeds.push_back(CDNSSeedData("vps9.prcycoin.com", "vps9.prcycoin.com"));          // Single node address
+        vSeeds.push_back(CDNSSeedData("vps10.prcycoin.com", "vps10.prcycoin.com"));        // Single node address
+        vSeeds.push_back(CDNSSeedData("vps11.prcycoin.com", "vps11.prcycoin.com"));        // Single node address
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1, 55);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1, 61);
