@@ -4,7 +4,7 @@ $(package)_download_path=https://download.qt.io/archive/qt/5.12/$($(package)_ver
 $(package)_suffix=everywhere-src-$($(package)_version).tar.xz
 $(package)_file_name=qtbase-$($(package)_suffix)
 $(package)_sha256_hash=8088f174e6d28e779516c083b6087b6a9e3c8322b4bc161fd1b54195e3c86940
-$(package)_dependencies=openssl zlib
+$(package)_dependencies=openssl
 $(package)_linux_dependencies=freetype fontconfig libxcb libxkbcommon
 $(package)_build_subdir=qtbase
 $(package)_qt_libs=corelib network widgets gui plugins testlib concurrent
@@ -72,7 +72,7 @@ $(package)_config_opts += -qt-libpng
 $(package)_config_opts += -gif
 $(package)_config_opts += -qt-pcre
 $(package)_config_opts += -qt-harfbuzz
-$(package)_config_opts += -system-zlib
+$(package)_config_opts += -qt-zlib
 $(package)_config_opts += -static
 $(package)_config_opts += -v
 $(package)_config_opts += -no-feature-dial
@@ -240,8 +240,6 @@ define $(package)_config_cmds
   export PKG_CONFIG_LIBDIR=$(host_prefix)/lib/pkgconfig && \
   export PKG_CONFIG_PATH=$(host_prefix)/share/pkgconfig  && \
   ./configure $($(package)_config_opts) && \
-  echo "host_build: QT_CONFIG ~= s/system-zlib/zlib" >> mkspecs/qconfig.pri && \
-  echo "CONFIG += force_bootstrap" >> mkspecs/qconfig.pri && \
   $(MAKE) sub-src-clean && \
   cd ../qttranslations && ../qtbase/bin/qmake qttranslations.pro -o Makefile && \
   cd translations && ../../qtbase/bin/qmake translations.pro -o Makefile && cd ../.. && \
