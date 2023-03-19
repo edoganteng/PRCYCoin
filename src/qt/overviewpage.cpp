@@ -124,9 +124,7 @@ OverviewPage::OverviewPage(QWidget* parent) : QDialog(parent, Qt::WindowSystemMe
 
     // Init getCurrencyValueInterval
     getCurrencyValueInterval = new QTimer(this);
-    manager = new QNetworkAccessManager(this);
     connect(getCurrencyValueInterval, SIGNAL(timeout()), this, SLOT(getCurrencyValue()));
-    connect(manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(setCurrencyValue(QNetworkReply*)));
     getCurrencyValueInterval->setInterval(300000);
     getCurrencyValueInterval->start();
 
@@ -153,10 +151,10 @@ void OverviewPage::getPercentage(CAmount nUnlockedBalance, QString& sPRCYPercent
     int nPrecision = 2;
 
     double dPercentage = 100.0;
-    
+
     sPRCYPercentage = "(" + QLocale(QLocale::system()).toString(dPercentage, 'f', nPrecision) + " %)";
 }
-void OverviewPage::setBalance(const CAmount& balance, const CAmount& unconfirmedBalance, const CAmount& immatureBalance, 
+void OverviewPage::setBalance(const CAmount& balance, const CAmount& unconfirmedBalance, const CAmount& immatureBalance,
                               const CAmount& watchOnlyBalance, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance)
 {
     int walletStatus = walletModel->getEncryptionStatus();
@@ -197,7 +195,7 @@ void OverviewPage::setBalance(const CAmount& balance, const CAmount& unconfirmed
     QFont font = ui->labelBalance_2->font();
     font.setPointSize(15);
     font.setBold(true);
-    ui->labelBalance_2->setFont(font);   
+    ui->labelBalance_2->setFont(font);
 
     updateRecentTransactions();
     getCurrencyValue();
@@ -255,15 +253,15 @@ void OverviewPage::setWalletModel(WalletModel* model)
         // Keep up to date with wallet
         setBalance(model->getBalance(), model->getUnconfirmedBalance(), model->getImmatureBalance(),
                    model->getWatchBalance(), model->getWatchUnconfirmedBalance(), model->getWatchImmatureBalance());
-        connect(model, SIGNAL(balanceChanged(CAmount, CAmount, CAmount, CAmount, CAmount, CAmount)), this, 
+        connect(model, SIGNAL(balanceChanged(CAmount, CAmount, CAmount, CAmount, CAmount, CAmount)), this,
                          SLOT(setBalance(CAmount, CAmount, CAmount, CAmount, CAmount, CAmount)));
-        connect(model, SIGNAL(stakingStatusChanged(bool)), this, 
+        connect(model, SIGNAL(stakingStatusChanged(bool)), this,
                          SLOT(setSpendableBalance(bool)));
         connect(model, SIGNAL(WalletUnlocked()), this,
                                          SLOT(updateBalance()));
         connect(model, SIGNAL(encryptionStatusChanged(int)), this,
                                          SLOT(updateLockStatus(int)));
-        
+
         connect(model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this, SLOT(updateDisplayUnit()));
         connect(model->getOptionsModel(), SIGNAL(hideOrphansChanged(bool)), this, SLOT(hideOrphans(bool)));
 
@@ -438,7 +436,7 @@ int OverviewPage::tryNetworkBlockCount(){
                 if (node->nStartingHeight>highestCount)
                     highestCount = node->nStartingHeight;
             if (highestCount>550){
-                networkBlockCount = highestCount; 
+                networkBlockCount = highestCount;
                 updateTotalBlocksLabel();
                 return highestCount;
             }
@@ -577,15 +575,10 @@ void OverviewPage::getCurrencyValue()
         return;
     }
     isRuninngQuery = true;
-    QNetworkRequest request;
-    QUrl coinGeckoUrl = QUrl("https://api.coingecko.com/api/v3/simple/price?ids=prcy-coin&vs_currencies=" + defaultCurrency + "&include_market_cap=false&include_24hr_vol=false&include_24hr_change=false&include_last_updated_at=false");
-    request.setUrl(coinGeckoUrl);
-    request.setHeader(QNetworkRequest::ServerHeader, "application/json");
-    reply = manager->get(request);
-    reply->ignoreSslErrors();
+    getHttpsJson("https://api.coingecko.com/api/v3/simple/price?ids=prcy-coin&vs_currencies=" + defaultCurrency.toStdString() + "&include_market_cap=false&include_24hr_vol=false&include_24hr_change=false&include_last_updated_at=false", cgReply, CG_HEADERS);
 }
 
-void OverviewPage::setCurrencyValue(QNetworkReply* reply)
+void OverviewPage::setCurrencyValue()
 {
     // Get Default Currency from Settings
     QString defaultCurrency = settings.value("strDefaultCurrency").toString();
@@ -608,12 +601,10 @@ void OverviewPage::setCurrencyValue(QNetworkReply* reply)
         defaultCurrencySymbol = "XAG";
     }
 
-    reply->deleteLater();
-    if(reply->error() == QNetworkReply::NoError) {
+    if(cgReply->failed == false && cgReply->complete == true) {
         try {
             // Parse data
-            QByteArray data = reply->readAll();
-            QJsonDocument jsonDocument(QJsonDocument::fromJson(data));
+            QJsonDocument jsonDocument(QJsonDocument::fromJson(cgReply->response.c_str()));
             const QJsonObject item  = jsonDocument.object();
             const QJsonObject currency  = item["prcy-coin"].toObject();
             auto currencyValue = currency[defaultCurrency.toLower()].toDouble();
@@ -626,8 +617,6 @@ void OverviewPage::setCurrencyValue(QNetworkReply* reply)
         } catch (...) {
             LogPrintf("%s: Error parsing CoinGecko API JSON\n", __func__);
         }
-    } else {
-        LogPrintf("%s: Error checking for Alternative Currency value: %d\n", __func__, reply->error());
     }
     isRuninngQuery = false;
 }

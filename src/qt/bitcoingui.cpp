@@ -9,6 +9,7 @@
 
 #include "bitcoinunits.h"
 #include "clientmodel.h"
+#include "curl_json.h"
 #include "guiconstants.h"
 #include "guiutil.h"
 #include "miner.h"
@@ -60,8 +61,6 @@
 #include <QVBoxLayout>
 #include <QPushButton>
 #include <QDesktopServices>
-#include <QNetworkAccessManager>
-#include <QUrlQuery>
 
 #define BASE_WINDOW_WIDTH 800
 #define BASE_WINDOW_HEIGHT 768
@@ -983,21 +982,15 @@ void BitcoinGUI::openToolkitClicked()
 void BitcoinGUI::checkForUpdatesClicked()
 {
     LogPrintf("Check For Updates: Checking...\n");
-    QUrl serviceUrl = QUrl("https://raw.githubusercontent.com/PRCYCoin/PRCYCoin/master/version.txt");
-    QNetworkAccessManager *manager = new QNetworkAccessManager(this);
-    connect(manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(serviceRequestFinished(QNetworkReply*)));
-    QNetworkRequest request;
-    request.setUrl(serviceUrl);
-    QNetworkReply* reply = manager->get(request);
+    getHttpsJson("https://raw.githubusercontent.com/PRCYCoin/PRCYCoin/master/version.txt", gitReply, GITHUB_HEADERS);
 }
 
-void BitcoinGUI::serviceRequestFinished(QNetworkReply* reply)
+void BitcoinGUI::serviceRequestFinished()
 {
     QString currentVersion = QString::number(CLIENT_VERSION_MAJOR) + "." + QString::number(CLIENT_VERSION_MINOR)+ "." + QString::number(CLIENT_VERSION_REVISION)+ "." + QString::number(CLIENT_VERSION_BUILD);
     QString currentVersionStripped = currentVersion.remove(QChar('.'), Qt::CaseInsensitive);
-    reply->deleteLater();
-    if(reply->error() == QNetworkReply::NoError) {
-        QByteArray data = reply->readAll();
+    if(gitReply->failed == false && gitReply->complete == true) {
+        QByteArray data = gitReply->response.c_str();
         QString dataStream = data.trimmed();
         QString availableVersionStripped = dataStream.remove(QChar('.'), Qt::CaseInsensitive);
         if (availableVersionStripped > currentVersionStripped) {
@@ -1023,10 +1016,9 @@ void BitcoinGUI::serviceRequestFinished(QNetworkReply* reply)
         }
     } else {
         LogPrintf("Check For Updates: Error!\n");
-        QByteArray error = reply->readAll();
         QMessageBox msgBox;
         msgBox.setWindowTitle("Error");
-        msgBox.setText("Error checking for updates.\n\n" + error);
+        msgBox.setText("Error checking for updates.");
         msgBox.setStyleSheet(GUIUtil::loadStyleSheet());
         msgBox.setIcon(QMessageBox::Critical);
         msgBox.exec();

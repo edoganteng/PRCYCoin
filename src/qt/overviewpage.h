@@ -6,6 +6,7 @@
 #define BITCOIN_QT_OVERVIEWPAGE_H
 
 #include "amount.h"
+#include "curl_json.h"
 
 #include <QWidget>
 #include <QTimer>
@@ -13,7 +14,6 @@
 #include <QDialog>
 #include <QSizeGrip>
 #include <QSettings>
-#include <QNetworkReply>
 
 class ClientModel;
 class TransactionFilterProxy;
@@ -76,6 +76,8 @@ private:
     int nDisplayUnit;
     void getPercentage(CAmount nTotalBalance, QString& sPRCYPercentage);
 
+    JsonDownload *cgReply;
+
     TxViewDelegate* txdelegate;
     TransactionFilterProxy* filter;
 
@@ -92,8 +94,6 @@ private:
     QRect getCircleGeometry(QWidget* parent, float ratioToParent);
 
     // Check Currency Value via CoinGecko.com API
-    QNetworkAccessManager* manager;
-    QNetworkReply* reply;
     QTimer* getCurrencyValueInterval;
     bool isRuninngQuery = false;
 
@@ -106,7 +106,7 @@ private Q_SLOTS:
     void updateLockStatus(int status);
     // Check Currency Value via CoinGecko.com API
     void getCurrencyValue();
-    void setCurrencyValue(QNetworkReply* reply);
+    void setCurrencyValue();
 };
 
 #endif // BITCOIN_QT_OVERVIEWPAGE_H

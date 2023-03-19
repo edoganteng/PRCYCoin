@@ -117,6 +117,7 @@ BITCOIN_CORE_H = \
   core_io.h \
   cuckoocache.h \
   crypter.h \
+  curl_json.h \
   wallet/db.h \
   fs.h \
   eccryptoverify.h \
@@ -288,6 +289,7 @@ libbitcoin_wallet_a_SOURCES = \
   activemasternode.cpp \
   bip38.cpp \
   wallet/db.cpp \
+  curl_json.cpp \
   crypter.cpp \
   swifttx.cpp \
   masternode.cpp \
