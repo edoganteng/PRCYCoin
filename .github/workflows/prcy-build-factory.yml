@@ -155,61 +155,6 @@ jobs:
       with:
         name: prcycoin-v${{ env.VERSION }}-x86_64-linux
         path: ${{ env.ARTIFACT_DIR }}
-  build-win64:
-    name: Build for Win64
-    needs: create-source-distribution
-    runs-on: ubuntu-18.04
-    env:
-      ARTIFACT_DIR: prcycoin-win64
-    steps:
-    - name: Getting Source
-      uses: actions/download-artifact@v1
-      with:
-        name: ${{ env.SOURCE_ARTIFACT }}
-    - name: Extract Archives
-      run: |
-        tar -xzf depends.tar.gz
-        tar -xzf prcycoin.tar.gz --strip-components=1
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Set Env
-      shell: bash
-      run: |
-        export VERSION=$(cat $SOURCE_ARTIFACT/version.txt | sed 's/[^0-9,.]//g')
-        echo "VERSION=${VERSION}" >> $GITHUB_ENV
-    - name: Append Commit Hash to Development Builds
-      if: "!contains(github.ref, 'master')"
-      shell: bash
-      run: |
-        export VERSION=${{ env.VERSION }}-${GITHUB_SHA::7}
-        echo "VERSION=${VERSION}" >> $GITHUB_ENV
-    - name: Install Required Packages
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64 nsis
-    - name: Switch MinGW GCC and G++ to POSIX Threading
-      run: |
-        sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
-        sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
-    - name: Build Dependencies
-      run: make -C depends -j$(nproc) HOST=x86_64-w64-mingw32
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Build PRCY
-      run: |
-        ./autogen.sh
-        ./configure --disable-jni --disable-tests --disable-gui-tests --disable-bench --prefix=$(realpath depends/x86_64-w64-mingw32) --enable-upnp-default --enable-reduce-exports
-        make -j$(nproc)
-        make deploy -j$(nproc)
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Prepare Files for Artifact
-      run: |
-        mkdir -p $ARTIFACT_DIR
-        strip $SOURCE_ARTIFACT/src/{prcycoin-cli.exe,prcycoin-tx.exe,prcycoind.exe,qt/prcycoin-qt.exe}
-        mv $SOURCE_ARTIFACT/{prcycoin-*.exe,src/prcycoin-cli.exe,src/prcycoin-tx.exe,src/prcycoind.exe,src/qt/prcycoin-qt.exe} $ARTIFACT_DIR
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v1
-      with:
-        name: prcycoin-v${{ env.VERSION }}-win64
-        path: ${{ env.ARTIFACT_DIR }}
   build-osx64:
     name: Build for MacOSX
     needs: create-source-distribution
