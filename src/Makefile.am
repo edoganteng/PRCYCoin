@@ -450,7 +450,7 @@ prcycoind_LDADD = \
   $(LIBSECP256K1) \
   $(LIBSECP256K1_2)
 
-prcycoind_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS)
+prcycoind_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(CURL_LIBS)
 
 # prcycoin-cli binary #
 prcycoin_cli_SOURCES = prcycoin-cli.cpp

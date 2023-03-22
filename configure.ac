@@ -990,6 +990,9 @@ dnl libevent check
   AC_CHECK_HEADER([openssl/ssl.h],, AC_MSG_ERROR(libssl headers missing),)
   AC_CHECK_LIB([ssl],         [main],SSL_LIBS=-lssl, AC_MSG_ERROR(libssl missing))
 
+    AC_CHECK_HEADER([curl/curl.h],,AC_MSG_ERROR(libcrypto headers missing))
+    AC_CHECK_LIB([curl],      [main],CURL_LIBS=-lcrypto, AC_MSG_ERROR(libcurl missing))
+
 if test x$build_bitcoin_cli$build_bitcoind$bitcoin_enable_qt$use_tests$use_bench != xnonononono; then
   PKG_CHECK_MODULES([EVENT], [libevent >= 2.0.21], [use_libevent=yes], [AC_MSG_ERROR([libevent version 2.0.21 or greater not found.])])
   if test x$TARGET_OS != xwindows; then
