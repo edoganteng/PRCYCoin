@@ -18,7 +18,6 @@
 #include "2faqrdialog.h"
 #include "2fadialog.h"
 #include "2faconfirmdialog.h"
-#include "zxcvbn.h"
 #include "utilmoneystr.h"
 #include "timedata.h"
 
@@ -318,14 +317,6 @@ void OptionsPage::on_pushButtonPassword_clicked()
             QMessageBox msgBox;
             msgBox.setWindowTitle("Wallet Encryption Failed");
             msgBox.setText("The passphrase must contain lower, upper, digit, symbol. Please try again.");
-            msgBox.setStyleSheet(GUIUtil::loadStyleSheet());
-            msgBox.setIcon(QMessageBox::Critical);
-            msgBox.exec();
-        }
-        else if (zxcvbn_password_strength(newPass.c_str(), NULL, &guesses, NULL) < 0 || guesses < 10000) {
-            QMessageBox msgBox;
-            msgBox.setWindowTitle("Wallet Encryption Failed");
-            msgBox.setText("The passphrase is too weak. You must use a minimum passphrase length of 10 characters and use uppercase letters, lowercase letters, numbers, and symbols. Please try again.");
             msgBox.setStyleSheet(GUIUtil::loadStyleSheet());
             msgBox.setIcon(QMessageBox::Critical);
             msgBox.exec();

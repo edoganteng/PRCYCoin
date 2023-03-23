@@ -22,7 +22,6 @@ BITCOIN_INCLUDES=-I$(builddir) $(BDB_CPPFLAGS) $(BOOST_CPPFLAGS) $(LEVELDB_CPPFL
 
 BITCOIN_INCLUDES += -I$(srcdir)/secp256k1/include
 BITCOIN_INCLUDES += -I$(srcdir)/secp256k1-mw/include
-BITCOIN_INCLUDES += -I$(srcdir)/zxcvbn
 BITCOIN_INCLUDES += $(UNIVALUE_CFLAGS)
 
 LIBBITCOIN_SERVER=libbitcoin_server.a
@@ -33,7 +32,6 @@ LIBBITCOIN_CRYPTO=crypto/libbitcoin_crypto.a
 LIBBITCOINQT=qt/libbitcoinqt.a
 LIBSECP256K1=secp256k1/libsecp256k1.la
 LIBSECP256K1_2=secp256k1-mw/libsecp256k1_2.la
-LIBBITCOIN_ZXCVBN=libbitcoin_zxcvbn.a
 
 if ENABLE_ZMQ
 LIBBITCOIN_ZMQ=libbitcoin_zmq.a
@@ -59,8 +57,7 @@ EXTRA_LIBRARIES += \
   $(LIBBITCOIN_SERVER) \
   $(LIBBITCOIN_CLI) \
   $(LIBBITCOIN_WALLET) \
-  $(LIBBITCOIN_ZMQ) \
-  $(LIBBITCOIN_ZXCVBN)
+  $(LIBBITCOIN_ZMQ)
 
 lib_LTLIBRARIES = $(LIBBITCOINCONSENSUS)
 
@@ -251,33 +248,6 @@ libbitcoin_zmq_a_SOURCES = \
   zmq/zmqnotificationinterface.cpp \
   zmq/zmqpublishnotifier.cpp
 endif
-
-libbitcoin_zxcvbn_a_CPPFLAGS = $(BITCOIN_INCLUDES) $(PIE_FLAGS)
-libbitcoin_zxcvbn_a_CXXFLAGS = $(AM_CXXFLAGS)
-libbitcoin_zxcvbn_a_SOURCES = \
-  zxcvbn/_frequency_lists.cpp \
-  zxcvbn/adjacency_graphs.cpp \
-  zxcvbn/feedback.cpp \
-  zxcvbn/frequency_lists.cpp \
-  zxcvbn/matching.cpp \
-  zxcvbn/scoring.cpp \
-  zxcvbn/time_estimates.cpp \
-  zxcvbn/util.cpp \
-  zxcvbn/zxcvbn.cpp \
-  zxcvbn/adjacency_graphs.hpp \
-  zxcvbn/common.hpp \
-  zxcvbn/feedback.hpp \
-  zxcvbn/frequency_lists_common.hpp \
-  zxcvbn/_frequency_lists.hpp \
-  zxcvbn/frequency_lists.hpp \
-  zxcvbn/matching.hpp \
-  zxcvbn/optional.hpp \
-  zxcvbn/scoring.hpp \
-  zxcvbn/time_estimates.hpp \
-  zxcvbn/util.hpp \
-  zxcvbn/zxcvbn.hpp \
-  zxcvbn/zxcvbn.h
-
 
 # wallet: shared between prcycoind and prcycoin-qt, but only linked
 # when wallet enabled
