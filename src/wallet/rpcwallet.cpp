@@ -3079,11 +3079,17 @@ UniValue erasewallettransactions(const UniValue& params, bool fHelp) {
     EnsureWallet();
     EnsureWalletIsUnlocked();
 
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
     CBlockIndex* pindex = chainActive.Tip();
 
-    pwalletMain->DeleteWalletTransactions(pindex);
+    UniValue ret(UniValue::VOBJ);
+    ret.push_back(Pair("initial_utxo_count", pwalletMain->mapWallet.size()));
+    pwalletMain->DeleteWalletTransactions(pindex, false);
+    ret.push_back(Pair("new_utxo_count", pwalletMain->mapWallet.size()));
+    ret.push_back(Pair("deleted_utxo_count", ret["initial_utxo_count"].get_int() - ret["new_utxo_count"].get_int()));
 
-    return "Done";
+    return ret;
 }
 
 UniValue revealmnemonicphrase(const UniValue& params, bool fHelp)
@@ -3129,7 +3135,8 @@ UniValue erasefromwallet(const UniValue& params, bool fHelp)
     if (!pwalletMain->mapWallet.count(hash))
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid or non-wallet transaction id");
 
-    pwalletMain->EraseFromWallet(hash);
+    if (!pwalletMain->mapWallet.count(hash))
+        return "Failed to delete transaction";
 
     return "Done";
 }
