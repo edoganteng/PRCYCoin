@@ -3082,12 +3082,18 @@ UniValue erasewallettransactions(const UniValue& params, bool fHelp) {
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     CBlockIndex* pindex = chainActive.Tip();
+    int initialCount = (int)pwalletMain->mapWallet.size();
+    int newCount, removedTxes = 0;
+
+    pwalletMain->DeleteWalletTransactions(pindex, false);
+
+    newCount = (int)pwalletMain->mapWallet.size();
+    removedTxes = initialCount - newCount;
 
     UniValue ret(UniValue::VOBJ);
-    ret.push_back(Pair("initial_utxo_count", pwalletMain->mapWallet.size()));
-    pwalletMain->DeleteWalletTransactions(pindex, false);
-    ret.push_back(Pair("new_utxo_count", pwalletMain->mapWallet.size()));
-    ret.push_back(Pair("deleted_utxo_count", ret["initial_utxo_count"].get_int() - ret["new_utxo_count"].get_int()));
+    ret.push_back(Pair("initial_utxo_count", initialCount));
+    ret.push_back(Pair("new_utxo_count", newCount));
+    ret.push_back(Pair("deleted_utxo_count", removedTxes));
 
     return ret;
 }
