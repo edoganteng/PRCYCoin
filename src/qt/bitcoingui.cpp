@@ -254,7 +254,13 @@ BitcoinGUI::BitcoinGUI(const NetworkStyle* networkStyle, QWidget* parent) : QMai
         timerStakingIcon->start(10000);
         setStakingStatus();
     }
-    checkForUpdatesClicked();
+    // Check for updates every 6 hours
+    checkForUpdatesInterval = new QTimer(this);
+    connect(checkForUpdatesInterval, SIGNAL(timeout()), this, SLOT(checkForUpdates()));
+    connect(manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(checkForUpdatesFinished(QNetworkReply*)));
+    checkForUpdatesInterval->setInterval(21600000);
+    checkForUpdatesInterval->start();
+    checkForUpdates();
 }
 
 BitcoinGUI::~BitcoinGUI()
@@ -511,7 +517,7 @@ void BitcoinGUI::createActions(const NetworkStyle* networkStyle)
     connect(openTGTechSupportAction, SIGNAL(triggered()), this, SLOT(openTGTechSupportClicked()));
     connect(openTGMNSupportAction, SIGNAL(triggered()), this, SLOT(openTGMNSupportClicked()));
     connect(openDiscordSupportAction, SIGNAL(triggered()), this, SLOT(openDiscordSupportClicked()));
-    connect(checkForUpdatesAction, SIGNAL(triggered()), this, SLOT(checkForUpdatesClicked()));
+    connect(checkForUpdatesAction, SIGNAL(triggered()), this, SLOT(checkForUpdates()));
 #ifdef ENABLE_WALLET
     if (walletFrame) {
         connect(encryptWalletAction, SIGNAL(triggered(bool)), walletFrame, SLOT(encryptWallet(bool)));
@@ -980,18 +986,16 @@ void BitcoinGUI::openToolkitClicked()
     QDesktopServices::openUrl(QUrl("https://toolkit.prcycoin.com"));
 }
 
-void BitcoinGUI::checkForUpdatesClicked()
+void BitcoinGUI::checkForUpdates()
 {
     LogPrintf("Check For Updates: Checking...\n");
     QUrl serviceUrl = QUrl("https://raw.githubusercontent.com/PRCYCoin/PRCYCoin/master/version.txt");
-    QNetworkAccessManager *manager = new QNetworkAccessManager(this);
-    connect(manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(serviceRequestFinished(QNetworkReply*)));
     QNetworkRequest request;
     request.setUrl(serviceUrl);
-    QNetworkReply* reply = manager->get(request);
+    reply = manager->get(request);
 }
 
-void BitcoinGUI::serviceRequestFinished(QNetworkReply* reply)
+void BitcoinGUI::checkForUpdatesFinished(QNetworkReply* reply)
 {
     QString currentVersion = QString::number(CLIENT_VERSION_MAJOR) + "." + QString::number(CLIENT_VERSION_MINOR)+ "." + QString::number(CLIENT_VERSION_REVISION)+ "." + QString::number(CLIENT_VERSION_BUILD);
     QString currentVersionStripped = currentVersion.remove(QChar('.'), Qt::CaseInsensitive);

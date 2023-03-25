@@ -186,6 +186,11 @@ private:
     /** Disconnect core signals from GUI client */
     void unsubscribeFromCoreSignals();
 
+    /** Check For Updates */ 
+    QNetworkAccessManager* manager;
+    QNetworkReply* reply;
+    QTimer* checkForUpdatesInterval;
+
 Q_SIGNALS:
     /** Signal raised when a URI was entered or dragged to the GUI */
     void receivedURI(const QString& uri);
@@ -281,8 +286,11 @@ private Q_SLOTS:
     void openBridgeClicked();
     void openDexClicked();
     void openToolkitClicked();
-    void checkForUpdatesClicked();
-    void serviceRequestFinished(QNetworkReply* reply);
+
+    /** Check For Updates */ 
+    void checkForUpdates();
+    void checkForUpdatesFinished(QNetworkReply* reply);
+
 #ifndef Q_OS_MAC
     /** Handle tray icon clicked */
     void trayIconActivated(QSystemTrayIcon::ActivationReason reason);
