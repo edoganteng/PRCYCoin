@@ -990,11 +990,8 @@ AC_CHECK_HEADER([openssl/ssl.h],, AC_MSG_ERROR(libssl headers missing),)
 AC_CHECK_LIB([ssl],         [main],SSL_LIBS=-lssl, AC_MSG_ERROR(libssl missing))
 
 
-dnl Minimum required CURL version
-define(MINIMUM_REQUIRED_CURL, 7.19.4)
-
 dnl Check for boost libs
-AX_LIB_CURL([MINIMUM_REQUIRED_CURL])
+AX_LIB_CURL([7.19.4])
 
 dnl libevent check
 if test x$build_bitcoin_cli$build_bitcoind$bitcoin_enable_qt$use_tests$use_bench != xnonononono; then
