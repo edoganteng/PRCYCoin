@@ -6105,8 +6105,11 @@ bool static ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vR
         if (pfrom->DisconnectOldProtocol(ActiveProtocol(), strCommand))
             return false;
 
-        if (pfrom->DisconnectOldVersion(pfrom->strSubVer, chainActive.Height(), strCommand))
+        if (pfrom->DisconnectOldVersion(pfrom->strSubVer, chainActive.Height(), strCommand)) {
+            LOCK(cs_main);
+            Misbehaving(pfrom->GetId(), 100);
             return false;
+        }
 
         if (pfrom->nVersion == 10300)
             pfrom->nVersion = 300;
