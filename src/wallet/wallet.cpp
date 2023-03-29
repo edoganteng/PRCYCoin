@@ -2080,6 +2080,13 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate, b
                 if (AddToWalletIfInvolvingMe(tx, &block, fUpdate))
                     ret++;
             }
+
+            LogPrintf("%s: Deleting Txes 1 start\n", __func__);
+            //Delete Transactions
+            if (pindex->nHeight % fDeleteInterval == 0)
+                while(DeleteWalletTransactions(pindex, true)) {}
+            LogPrintf("%s: Deleting Txes 1 end\n", __func__);
+
             pindex = chainActive.Next(pindex);
             if (GetTime() >= nNow + 60) {
                 nNow = GetTime();
@@ -2091,6 +2098,10 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate, b
             }
         }
         ShowProgress(_("Rescanning... Please do not interrupt this process as it could lead to a corrupt wallet."), 100); // hide progress dialog in GUI
+        //Delete transactions
+        LogPrintf("%s: Deleting Txes 2 start\n", __func__);
+        while(DeleteWalletTransactions(chainActive.Tip(), true)) {}
+        LogPrintf("%s: Deleting Txes 2 end\n", __func__);
     }
     return ret;
 }
