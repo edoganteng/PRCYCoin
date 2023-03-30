@@ -76,7 +76,7 @@ endef
 
 define $(package)_config_cmds
   echo "Configuring $(package)..." && \
-  echo $($(package)_config_opts) && \
+  echo "using $($(package)_toolset_$(host_os)) : : $($(package)_cxx) : <cflags>\"$($(package)_cflags)\" <cxxflags>\"$($(package)_cxxflags)\" <compileflags>\"$($(package)_cppflags)\" <linkflags>\"$($(package)_ldflags)\" <archiver>\"$($(package)_ar)\" <striper>\"$(host_STRIP)\"  <ranlib>\"$(host_RANLIB)\" <rc>\"$(host_WINDRES)\" : ;" && \
   ./Configure $($(package)_config_opts)
 endef
 
