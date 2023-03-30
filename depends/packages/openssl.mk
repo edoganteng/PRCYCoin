@@ -75,6 +75,8 @@ define $(package)_preprocess_cmds
 endef
 
 define $(package)_config_cmds
+  echo "Configuring $(package)..." && \
+  echo $($(package)_config_opts) && \
   ./Configure $($(package)_config_opts)
 endef
 
