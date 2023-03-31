@@ -101,7 +101,7 @@ jobs:
     - name: Build PRCY
       run: |
         ./autogen.sh
-        ./configure --disable-jni --disable-tests --disable-gui-tests --disable-bench --enable-upnp-default
+        ./configure --disable-jni --disable-tests --disable-gui-tests --disable-bench --enable-upnp-default LDFLAGS="-L/usr/local/ssl/lib" CPPFLAGS="-I/usr/local/ssl/include"
         make -j$(nproc)
       working-directory: ${{ env.SOURCE_ARTIFACT }}
     - name: Prepare Files for Artifact
