@@ -53,7 +53,7 @@ jobs:
   build-linux:
     name: Build for Linux
     needs: create-source-distribution
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     env:
       ARTIFACT_DIR: prcycoin-linux
       TEST_LOG_ARTIFACT_DIR: test-logs
@@ -81,11 +81,23 @@ jobs:
     - name: Install Required Packages
       run: |
         sudo apt-get update
-        sudo apt-get install -y libssl1.0-dev libevent-dev libboost-all-dev
+        sudo apt-get install -y libevent-dev libboost-all-dev
         sudo apt-get install -y libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools libqrencode-dev
         sudo add-apt-repository ppa:pivx/pivx
         sudo apt-get update
         sudo apt-get install -y libdb4.8-dev libdb4.8++-dev
+        sudo apt-get remove libssl-dev -y
+        #sudo -i
+        #echo "deb http://security.ubuntu.com/ubuntu/ bionic-security main" >> /etc/apt/sources.list
+        #sudo apt update && apt-cache policy libssl1.0-dev
+        #sudo apt-get install -y libssl1.0-dev
+        wget https://www.openssl.org/source/old/1.0.1/openssl-1.0.1k.tar.gz
+        tar -xvf openssl-1.0.1k.tar.gz
+        cd openssl-1.0.1k
+        ./config
+        make
+        sudo make install
+        openssl version
     - name: Build PRCY
       run: |
         ./autogen.sh
